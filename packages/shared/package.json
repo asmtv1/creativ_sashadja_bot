@@ -1,0 +1,29 @@
+{
+  "name": "@course/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/api/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/api/index.ts --format esm --dts --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@course/config": "workspace:*"
+  }
+}

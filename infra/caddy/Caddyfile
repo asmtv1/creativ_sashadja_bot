@@ -1,0 +1,15 @@
+{$CADDY_SITE_ADDRESS:sasha.gafus.ru} {
+  encode gzip zstd
+
+  handle /api/* {
+    reverse_proxy api:3001
+  }
+
+  handle /telegram/webhook {
+    reverse_proxy bot:3002
+  }
+
+  handle {
+    reverse_proxy miniapp:3000
+  }
+}

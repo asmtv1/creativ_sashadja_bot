@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  YOOKASSA
+  TELEGRAM_STARS
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  CANCELED
+  REFUNDED
+}
+
+enum AccessSource {
+  PAYMENT
+  ADMIN
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum OutboxType {
+  PAYMENT_SUCCEEDED
+  ACCESS_GRANTED
+  ACCESS_REVOKED
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+model TelegramUser {
+  id           String         @id @default(uuid()) @db.Uuid
+  telegramId   String         @unique
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  orders       Order[]
+  access       CourseAccess[]
+}
+
+model Course {
+  id            String         @id @default(uuid()) @db.Uuid
+  slug          String         @unique
+  title         String
+  description   String
+  priceKopecks  Int
+  currency      String         @default("RUB")
+  isPublished   Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lessons       Lesson[]
+  orders        Order[]
+  access        CourseAccess[]
+}
+
+model Lesson {
+  id               String   @id @default(uuid()) @db.Uuid
+  courseId         String   @db.Uuid
+  slug             String
+  sortOrder        Int
+  title            String
+  description      String?
+  durationSeconds  Int?
+  kinescopeVideoId String
+  kinescopeEmbedUrl String
+  posterUrl        String?
+  isPublished      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, slug])
+  @@unique([courseId, sortOrder])
+}
+
+model Order {
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @db.Uuid
+  courseId          String          @db.Uuid
+  provider          PaymentProvider @default(YOOKASSA)
+  status            OrderStatus     @default(PENDING)
+  amountKopecks     Int
+  currency          String
+  providerPaymentId String?         @unique
+  paymentUrl        String?
+  idempotenceKey    String          @unique
+  paidAt            DateTime?
+  canceledAt        DateTime?
+  refundedAt        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  user              TelegramUser    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course            Course          @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  payments          Payment[]
+  access            CourseAccess[]
+}
+
+model Payment {
+  id                String          @id @default(uuid()) @db.Uuid
+  orderId           String          @db.Uuid
+  provider          PaymentProvider
+  providerPaymentId String          @unique
+  status            PaymentStatus
+  amountKopecks     Int
+  currency          String
+  rawPayload        Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model CourseAccess {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @db.Uuid
+  courseId  String       @db.Uuid
+  source    AccessSource
+  orderId   String?      @db.Uuid
+  grantedAt DateTime     @default(now())
+  revokedAt DateTime?
+  user      TelegramUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order     Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, courseId])
+}
+
+model BotOutbox {
+  id            String       @id @default(uuid()) @db.Uuid
+  telegramId    String
+  type          OutboxType
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lockedAt      DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model WebhookEvent {
+  id               String          @id @default(uuid()) @db.Uuid
+  provider         PaymentProvider
+  providerEventKey String          @unique
+  status           WebhookStatus   @default(RECEIVED)
+  rawPayload       Json
+  processedAt      DateTime?
+  createdAt        DateTime        @default(now())
+}
+
+model AdminAuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  action         String
+  actor          String
+  targetUserId   String?  @db.Uuid
+  targetCourseId String?  @db.Uuid
+  metadata       Json?
+  createdAt      DateTime @default(now())
+}

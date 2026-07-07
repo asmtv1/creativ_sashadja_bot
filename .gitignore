@@ -1,0 +1,11 @@
+node_modules
+.turbo
+dist
+.next
+coverage
+.env
+.env.local
+.env.*.local
+*.log
+*.tsbuildinfo
+postgres-data

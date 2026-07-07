@@ -1,0 +1,11 @@
+{
+  "extends": "@course/config/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src"]
+}

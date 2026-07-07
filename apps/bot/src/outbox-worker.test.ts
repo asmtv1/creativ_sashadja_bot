@@ -1,0 +1,51 @@
+import { describe, expect, it, vi } from "vitest";
+import { runOutboxBatch } from "./outbox-worker";
+
+describe("runOutboxBatch", () => {
+  it("marks outbox items sent after successful Telegram delivery", async () => {
+    const api = {
+      getOutbox: vi.fn(async () => [
+        { id: "out_1", telegramId: "42", type: "PAYMENT_SUCCEEDED" as const, payload: {} }
+      ]),
+      markOutboxSent: vi.fn(),
+      markOutboxFailed: vi.fn()
+    };
+    const telegram = { sendMessage: vi.fn(async () => undefined) };
+
+    await runOutboxBatch({ api, telegram });
+
+    expect(telegram.sendMessage).toHaveBeenCalledWith(
+      "42",
+      expect.stringContaining("Урок успешно оплачен")
+    );
+    expect(api.markOutboxSent).toHaveBeenCalledWith("out_1");
+    expect(api.markOutboxFailed).not.toHaveBeenCalled();
+  });
+
+  it("marks outbox items failed and delegates retry scheduling to the API", async () => {
+    const api = {
+      getOutbox: vi.fn(async () => [
+        { id: "out_1", telegramId: "42", type: "PAYMENT_SUCCEEDED" as const, payload: {} }
+      ]),
+      markOutboxSent: vi.fn(),
+      markOutboxFailed: vi.fn()
+    };
+    const telegram = { sendMessage: vi.fn(async () => Promise.reject(new Error("telegram down"))) };
+
+    await runOutboxBatch({ api, telegram });
+
+    expect(api.markOutboxFailed).toHaveBeenCalledWith("out_1", "telegram down");
+  });
+
+  it("does not crash polling when the API is temporarily unavailable", async () => {
+    const api = {
+      getOutbox: vi.fn(async () => Promise.reject(new Error("api down"))),
+      markOutboxSent: vi.fn(),
+      markOutboxFailed: vi.fn()
+    };
+    const telegram = { sendMessage: vi.fn(async () => undefined) };
+
+    await expect(runOutboxBatch({ api, telegram })).resolves.toBeUndefined();
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+  });
+});
