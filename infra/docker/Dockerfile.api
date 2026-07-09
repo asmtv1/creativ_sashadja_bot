@@ -19,5 +19,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/apps ./apps
+RUN DATABASE_URL=postgresql://course:course@postgres:5432/course?schema=public pnpm db:generate
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 CMD ["pnpm", "--filter", "@course/api", "start"]
