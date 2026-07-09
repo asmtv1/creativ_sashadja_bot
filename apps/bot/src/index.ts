@@ -21,6 +21,11 @@ const bot = createCourseBot({
 startOutboxWorker(api, bot.api);
 
 if (config.BOT_MODE === "webhook") {
+  const webhookUrl = new URL("/telegram/webhook", config.PUBLIC_BASE_URL).href;
+  await bot.api.setWebhook(webhookUrl, {
+    secret_token: config.TELEGRAM_WEBHOOK_SECRET,
+    allowed_updates: ["message", "callback_query", "pre_checkout_query"]
+  });
   await startWebhookServer({
     bot,
     port: config.PORT,
