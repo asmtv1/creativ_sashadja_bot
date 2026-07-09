@@ -235,6 +235,10 @@ jobs:
           docker compose -p tgbot exec -T api wget -qO- http://127.0.0.1:3001/api/health
           docker compose -p tgbot exec -T bot wget -qO- http://127.0.0.1:3002/health
           docker compose -p tgbot exec -T miniapp wget -qO- http://127.0.0.1:3000 >/dev/null
+          set -a
+          . "$shared_env_path"
+          set +a
+          curl -fsS --retry 12 --retry-delay 5 "https://${CADDY_SITE_ADDRESS}/api/health"
 
           find "$DEPLOY_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -5 | xargs -r rm -rf
           REMOTE

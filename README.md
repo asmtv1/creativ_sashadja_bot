@@ -53,7 +53,7 @@ docker compose up -d postgres
 pnpm db:migrate
 pnpm db:seed
 docker compose up -d --build
-curl -f http://localhost/api/health
+curl -f https://sasha.gafus.ru/api/health
 ```
 
 Public routing through Caddy:
@@ -75,7 +75,8 @@ Pushes to `main` run GitHub Actions CI and then deploy to the VPS over SSH.
 The server does not need GitHub repository access: the workflow archives the
 checked-out commit, uploads it to the server, writes `.env` from GitHub Secrets,
 applies pending Prisma schema migrations, and runs Docker Compose from a release
-directory.
+directory. The production Compose stack owns the server's public `80` and `443`
+ports through its bundled Caddy service.
 
 Required GitHub Actions secrets:
 
@@ -116,13 +117,16 @@ The workflow generates the production `.env` from these separate secrets.
 `DATABASE_URL` is generated automatically from `POSTGRES_USER`,
 `POSTGRES_PASSWORD`, and `POSTGRES_DB`. `API_BASE_URL=http://api:3001`,
 `BOT_MODE=webhook`, and `NEXT_PUBLIC_API_BASE_URL=` are fixed by the workflow
-for the current Caddy routing shape.
+for the current Caddy routing shape. Deployment verifies container healthchecks
+and then checks `https://$CADDY_SITE_ADDRESS/api/health` through public Caddy.
 
 Server prerequisites:
 
 - Docker with the Compose v2 plugin.
 - `curl`, `tar`, and SSH access for the deploy user.
 - The deploy user must be able to run `docker compose`.
+- Ports `80` and `443` must be free for this project; do not run another public
+  reverse proxy on the same host unless `docker-compose.yml` is changed.
 
 Production deployment uses Compose project name `tgbot`, so named volumes stay
 stable across release directories. Database schema changes are deployed with

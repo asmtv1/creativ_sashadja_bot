@@ -76,8 +76,6 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    profiles:
-      - edge
     restart: unless-stopped
     env_file:
       - path: .env
