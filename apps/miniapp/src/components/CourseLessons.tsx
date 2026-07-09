@@ -4,7 +4,12 @@ import { useState } from "react";
 import { CourseDto, LessonDto } from "@course/shared";
 import { LessonPlayer } from "./LessonPlayer";
 
-export function CourseLessons({ course, lessons }: { course: CourseDto; lessons: LessonDto[] }) {
+type CourseLessonsProps = {
+  course: CourseDto;
+  lessons: LessonDto[];
+};
+
+export function CourseLessons({ course: _course, lessons }: CourseLessonsProps) {
   const [activeSlug, setActiveSlug] = useState(lessons[0]?.slug ?? "");
   const activeLesson = lessons.find((lesson) => lesson.slug === activeSlug) ?? lessons[0];
 
