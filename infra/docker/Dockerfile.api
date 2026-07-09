@@ -21,6 +21,7 @@ COPY packages/shared ./packages/shared
 COPY apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 RUN pnpm install --frozen-lockfile --prod --filter @course/api...
+RUN pnpm add -D prisma@6.19.3 --filter @course/db
 ENV DATABASE_URL=postgresql://course:course@postgres:5432/course?schema=public
 RUN pnpm db:generate
 CMD ["node", "apps/api/dist/main.js"]
