@@ -56,6 +56,12 @@ docker compose up -d --build
 curl -f https://sasha.gafus.ru/api/health
 ```
 
+To run committed migrations inside Docker, use the dedicated one-shot service:
+
+```bash
+docker compose --profile tools run --rm migrate
+```
+
 Public routing through Caddy:
 
 - `https://sasha.gafus.ru/` -> Mini App
@@ -74,7 +80,9 @@ After deploy:
 Pushes to `main` run GitHub Actions CI and then deploy to the VPS over SSH.
 The server does not need GitHub repository access: the workflow archives the
 checked-out commit, uploads it to the server, writes `.env` from GitHub Secrets,
-applies pending Prisma schema migrations, and runs Docker Compose from a release
+stops obsolete non-`tgbot` Compose projects, prunes unused containers/images/build
+cache without deleting named volumes, applies pending Prisma schema migrations
+through the dedicated `migrate` Compose service, and runs Docker Compose from a release
 directory. The production Compose stack owns the server's public `80` and `443`
 ports through its bundled Caddy service.
 
@@ -128,10 +136,20 @@ Server prerequisites:
 - Ports `80` and `443` must be free for this project; do not run another public
   reverse proxy on the same host unless `docker-compose.yml` is changed.
 
-Production deployment uses Compose project name `tgbot`, so named volumes stay
-stable across release directories. Database schema changes are deployed with
-`prisma migrate deploy` from committed SQL migration files under
-`packages/db/prisma/migrations`.
+Production deployment uses Compose project name `tgbot`, so container names and
+named volumes stay stable across release directories. If the server was polluted
+by old hash-named Compose stacks, run this from the active release directory:
+
+```bash
+KEEP_PROJECT=tgbot sh infra/scripts/prod-cleanup.sh
+```
+
+The cleanup script stops Compose projects other than `tgbot` and prunes stopped
+containers plus unused images/build cache. It intentionally does not prune named
+volumes, so the production database volume is preserved.
+
+Database schema changes are deployed with `prisma migrate deploy` from committed
+SQL migration files under `packages/db/prisma/migrations`.
 
 Local database rows are never deployed. To change the production schema, update
 `packages/db/prisma/schema.prisma`, run

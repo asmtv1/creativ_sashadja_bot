@@ -33,6 +33,18 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.migrate
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   bot:
     restart: unless-stopped
     build:
