@@ -1,0 +1,13 @@
+.git
+.github
+**/.next
+**/dist
+**/node_modules
+**/.turbo
+**/coverage
+*.tsbuildinfo
+.env*
+.deploy.env
+release.tar.gz
+README.md
+план архитектуры.md

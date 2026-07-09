@@ -227,7 +227,18 @@ jobs:
           ln -sfn "$release_dir" "$DEPLOY_PATH/current"
 
           cd "$DEPLOY_PATH/current"
-          docker compose -p tgbot build
+
+          echo "Disk before cleanup:"
+          df -h /
+
+          docker compose -p tgbot down --remove-orphans 2>/dev/null || true
+          docker builder prune -af 2>/dev/null || true
+          docker image prune -af 2>/dev/null || true
+
+          echo "Disk after cleanup:"
+          df -h /
+
+          COMPOSE_PARALLEL_LIMIT=1 docker compose -p tgbot build
           docker compose -p tgbot up -d postgres
           docker compose -p tgbot run --rm -T api pnpm --filter @course/db prisma:migrate:deploy
           docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180
@@ -239,6 +250,8 @@ jobs:
           . "$shared_env_path"
           set +a
           curl -fsS --retry 12 --retry-delay 5 "https://${CADDY_SITE_ADDRESS}/api/health"
+
+          docker builder prune -af --filter "until=24h" 2>/dev/null || true
 
           find "$DEPLOY_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -5 | xargs -r rm -rf
           REMOTE

@@ -12,11 +12,9 @@ RUN pnpm --filter @course/miniapp build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json /app/pnpm-workspace.yaml ./
-COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps ./apps
-COPY --from=build /app/apps/miniapp/.next ./apps/miniapp/.next
+ENV PORT=3000
+COPY --from=build /app/apps/miniapp/.next/standalone ./
+COPY --from=build /app/apps/miniapp/.next/static ./apps/miniapp/.next/static
 COPY --from=build /app/apps/miniapp/public ./apps/miniapp/public
-CMD ["pnpm", "--filter", "@course/miniapp", "start"]
+EXPOSE 3000
+CMD ["node", "apps/miniapp/server.js"]
