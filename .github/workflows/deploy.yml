@@ -180,6 +180,7 @@ jobs:
       - name: Prepare release archive
         run: |
           set -euo pipefail
+          archive_path="$RUNNER_TEMP/release.tar.gz"
           tar \
             --exclude=.git \
             --exclude=.github \
@@ -191,7 +192,8 @@ jobs:
             --exclude='*.tsbuildinfo' \
             --exclude=.deploy.env \
             --exclude='.env*' \
-            -czf release.tar.gz .
+            -czf "$archive_path" .
+          cp "$archive_path" release.tar.gz
 
       - name: Upload release
         run: |
