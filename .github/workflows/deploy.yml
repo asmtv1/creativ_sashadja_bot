@@ -229,12 +229,12 @@ jobs:
           cd "$DEPLOY_PATH/current"
           docker compose -p tgbot build
           docker compose -p tgbot up -d postgres
-          docker compose -p tgbot run --rm api pnpm --filter @course/db prisma:migrate:deploy
+          docker compose -p tgbot run --rm -T api pnpm --filter @course/db prisma:migrate:deploy
           docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180
           docker compose -p tgbot ps
-          docker compose -p tgbot exec -T api wget -qO- http://localhost:3001/api/health
-          docker compose -p tgbot exec -T bot wget -qO- http://localhost:3002/health
-          docker compose -p tgbot exec -T miniapp wget -qO- http://localhost:3000 >/dev/null
+          docker compose -p tgbot exec -T api wget -qO- http://127.0.0.1:3001/api/health
+          docker compose -p tgbot exec -T bot wget -qO- http://127.0.0.1:3002/health
+          docker compose -p tgbot exec -T miniapp wget -qO- http://127.0.0.1:3000 >/dev/null
 
           find "$DEPLOY_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -5 | xargs -r rm -rf
           REMOTE
