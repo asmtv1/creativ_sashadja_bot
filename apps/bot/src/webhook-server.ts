@@ -35,7 +35,11 @@ export async function startWebhookServer(options: {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     const update = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    await options.bot.handleUpdate(update);
+    try {
+      await options.bot.handleUpdate(update);
+    } catch (error) {
+      console.error("Webhook update handling failed", error);
+    }
     response.writeHead(200, { "content-type": "application/json" });
     response.end(JSON.stringify({ ok: true }));
   });

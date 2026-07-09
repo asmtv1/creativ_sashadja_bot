@@ -43,6 +43,10 @@ export function createCourseBot(deps: {
     await handleSuccessfulPayment(ctx, { api: deps.api, miniAppUrl: deps.miniAppUrl });
   });
 
+  bot.catch((error) => {
+    console.error("Bot handler failed", error.error);
+  });
+
   return bot;
 }
 

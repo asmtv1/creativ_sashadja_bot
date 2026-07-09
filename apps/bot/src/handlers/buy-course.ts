@@ -22,7 +22,15 @@ export async function handleBuyCourse(
     throw new Error("Telegram invoice API is missing from bot context");
   }
 
-  const order = await deps.api.createOrder(telegramId);
+  const order = await deps.api.createOrder(telegramId).catch((error: unknown) => {
+    console.error("Bot buy_course API call failed", error instanceof Error ? error.message : error);
+    return null;
+  });
+
+  if (!order) {
+    await ctx.reply("Сервис временно недоступен. Попробуйте ещё раз через минуту.");
+    return;
+  }
 
   if ("alreadyPaid" in order) {
     await ctx.reply("Доступ уже открыт. Можно переходить к курсу.");
