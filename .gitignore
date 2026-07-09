@@ -4,6 +4,7 @@ dist
 .next
 coverage
 .env
+.deploy.env
 .env.local
 .env.*.local
 *.log

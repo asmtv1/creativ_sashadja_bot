@@ -13,6 +13,7 @@
     "typecheck": "turbo run typecheck",
     "db:generate": "pnpm --filter @course/db prisma:generate",
     "db:migrate": "pnpm --filter @course/db prisma:migrate",
+    "db:migrate:deploy": "pnpm --filter @course/db prisma:migrate:deploy",
     "db:seed": "pnpm --filter @course/db prisma:seed"
   },
   "devDependencies": {

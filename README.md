@@ -42,6 +42,7 @@ Root scripts:
 
 - `pnpm db:generate`
 - `pnpm db:migrate`
+- `pnpm db:migrate:deploy`
 - `pnpm db:seed`
 
 ## Docker
@@ -67,3 +68,71 @@ After deploy:
 2. Connect YooKassa payments for the bot in `@BotFather` and set `TELEGRAM_PAYMENT_PROVIDER_TOKEN`.
 3. Configure BotFather Mini App URL: `https://sasha.gafus.ru`.
 4. Configure Kinescope privacy/domain rules for the same domain.
+
+## CI/CD
+
+Pushes to `main` run GitHub Actions CI and then deploy to the VPS over SSH.
+The server does not need GitHub repository access: the workflow archives the
+checked-out commit, uploads it to the server, writes `.env` from GitHub Secrets,
+applies pending Prisma schema migrations, and runs Docker Compose from a release
+directory.
+
+Required GitHub Actions secrets:
+
+- `DEPLOY_HOST`: server IP or hostname.
+- `DEPLOY_USER`: SSH user.
+- `DEPLOY_SSH_KEY`: private SSH key for the deploy user.
+- `DEPLOY_PATH`: base deployment directory on the server, for example `/opt/tgbot`.
+- `PUBLIC_BASE_URL`: public HTTPS URL, for example `https://sasha.gafus.ru`.
+- `CADDY_SITE_ADDRESS`: Caddy site address, for example `sasha.gafus.ru`.
+- `POSTGRES_USER`: production Postgres user.
+- `POSTGRES_PASSWORD`: production Postgres password.
+- `POSTGRES_DB`: production Postgres database name.
+- `TELEGRAM_BOT_TOKEN`: production Telegram bot token.
+- `INTERNAL_API_TOKEN`: shared secret for bot-to-API calls.
+- `ADMIN_BASIC_USER`: admin panel login.
+- `ADMIN_BASIC_PASSWORD`: admin panel password.
+- `MINIAPP_SESSION_SECRET`: Mini App session signing secret, at least 16 characters.
+
+Optional GitHub Actions secrets used in the generated production `.env`:
+
+- `TELEGRAM_BOT_USERNAME`
+- `TELEGRAM_PAYMENT_PROVIDER_TOKEN`: BotFather payment provider token for Telegram invoices.
+- `TELEGRAM_WEBHOOK_SECRET`: Telegram webhook secret token.
+- `YOOKASSA_SHOP_ID`
+- `YOOKASSA_SECRET_KEY`
+- `YOOKASSA_WEBHOOK_SECRET`
+- `YOOKASSA_CURRENCY`: defaults to `RUB`.
+- `MINIAPP_SESSION_TTL_SECONDS`: defaults to `1800`.
+- `KINESCOPE_API_TOKEN`
+- `KINESCOPE_PRIVACY_MODE`: defaults to `private_domains`.
+- `COURSE_SLUG`: defaults to `basic-course`.
+
+Optional GitHub Actions secret:
+
+- `DEPLOY_PORT`: SSH port. Defaults to `22` when empty.
+
+The workflow generates the production `.env` from these separate secrets.
+`DATABASE_URL` is generated automatically from `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, and `POSTGRES_DB`. `API_BASE_URL=http://api:3001`,
+`BOT_MODE=webhook`, and `NEXT_PUBLIC_API_BASE_URL=` are fixed by the workflow
+for the current Caddy routing shape.
+
+Server prerequisites:
+
+- Docker with the Compose v2 plugin.
+- `curl`, `tar`, and SSH access for the deploy user.
+- The deploy user must be able to run `docker compose`.
+
+Production deployment uses Compose project name `tgbot`, so named volumes stay
+stable across release directories. Database schema changes are deployed with
+`prisma migrate deploy` from committed SQL migration files under
+`packages/db/prisma/migrations`.
+
+Local database rows are never deployed. To change the production schema, update
+`packages/db/prisma/schema.prisma`, run
+`pnpm --filter @course/db prisma:migrate -- --name <change-name>` against a
+local/test database, and commit both `schema.prisma` and the generated
+`packages/db/prisma/migrations/*/migration.sql`. Do not put test users, orders,
+or seed-only data into migration SQL. Seed data only runs when `pnpm db:seed` is
+called manually.
