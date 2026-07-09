@@ -64,6 +64,7 @@ services:
         required: false
     environment:
       PORT: 3000
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
     depends_on:
       api:
