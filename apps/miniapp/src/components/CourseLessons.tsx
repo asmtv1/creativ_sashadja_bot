@@ -4,33 +4,37 @@ import { useState } from "react";
 import { CourseDto, LessonDto } from "@course/shared";
 import { LessonPlayer } from "./LessonPlayer";
 
-export function CourseLessons({ course, lessons }: { course: CourseDto; lessons: LessonDto[] }) {
+type CourseLessonsProps = {
+  course: CourseDto;
+  lessons: LessonDto[];
+};
+
+export function CourseLessons({ course: _course, lessons }: CourseLessonsProps) {
   const [activeSlug, setActiveSlug] = useState(lessons[0]?.slug ?? "");
   const activeLesson = lessons.find((lesson) => lesson.slug === activeSlug) ?? lessons[0];
 
   return (
     <main className="app-shell stack">
-      <section className="panel stack">
-        <h1>{course.title}</h1>
-        <p className="muted">{course.description}</p>
-      </section>
+      <section className="lesson-page stack">
+        <h1>вот ваш урок. смотрите</h1>
 
-      <section className="lesson-list">
-        <nav className="lesson-nav" aria-label="Уроки">
-          {lessons.map((lesson) => (
-            <button
-              className={`lesson-button${lesson.slug === activeLesson?.slug ? " active" : ""}`}
-              key={lesson.slug}
-              type="button"
-              onClick={() => setActiveSlug(lesson.slug)}
-            >
-              <span aria-hidden="true">{lesson.sortOrder}. </span>
-              <span>{lesson.title}</span>
-            </button>
-          ))}
-        </nav>
+        {lessons.length > 1 ? (
+          <nav className="lesson-tabs" aria-label="Уроки">
+            {lessons.map((lesson) => (
+              <button
+                className={`lesson-tab${lesson.slug === activeLesson?.slug ? " active" : ""}`}
+                key={lesson.slug}
+                type="button"
+                onClick={() => setActiveSlug(lesson.slug)}
+              >
+                <span aria-hidden="true">{lesson.sortOrder}. </span>
+                <span>{lesson.title}</span>
+              </button>
+            ))}
+          </nav>
+        ) : null}
 
-        <div className="panel">
+        <div className="panel lesson-player-panel">
           {activeLesson ? <LessonPlayer lesson={activeLesson} /> : <p>Уроки пока не опубликованы.</p>}
         </div>
       </section>

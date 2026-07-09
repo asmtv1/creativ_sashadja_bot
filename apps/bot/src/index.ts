@@ -18,6 +18,7 @@ const bot = createCourseBot({
   paymentProviderToken: config.TELEGRAM_PAYMENT_PROVIDER_TOKEN
 });
 
+await syncBotMenuButton(bot.api, config.PUBLIC_BASE_URL);
 startOutboxWorker(api, bot.api);
 
 if (config.BOT_MODE === "webhook") {
@@ -46,4 +47,21 @@ function startOutboxWorker(internalApi: InternalApiClient, telegram: Api) {
       }
     });
   }, 5_000);
+}
+
+async function syncBotMenuButton(telegram: Api, miniAppUrl: string) {
+  try {
+    await telegram.setChatMenuButton({
+      menu_button: {
+        type: "web_app",
+        text: "Открыть курс",
+        web_app: { url: miniAppUrl }
+      }
+    });
+  } catch (error) {
+    console.warn(
+      "Failed to sync Telegram bot menu button",
+      error instanceof Error ? error.message : "Unknown Telegram API error"
+    );
+  }
 }

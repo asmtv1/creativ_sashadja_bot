@@ -44,7 +44,8 @@ describe("Mini App course flow components", () => {
       />
     );
 
-    expect(screen.getByText("Lesson 1")).toBeTruthy();
+    expect(screen.getByText("вот ваш урок. смотрите")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /на весь экран/i })).toBeTruthy();
     expect(screen.getByTitle("Lesson 1").getAttribute("src")).toBe(
       "https://kinescope.io/embed/secret"
     );
