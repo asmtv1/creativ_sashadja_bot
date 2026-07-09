@@ -1,11 +1,13 @@
 import { createServer } from "node:http";
 import { Bot } from "grammy";
 
-export function startWebhookServer(options: {
-  bot: Bot;
+export async function startWebhookServer(options: {
+  bot: Pick<Bot, "handleUpdate" | "init">;
   port: number;
   secretToken?: string;
 }) {
+  await options.bot.init();
+
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
@@ -38,6 +40,8 @@ export function startWebhookServer(options: {
     response.end(JSON.stringify({ ok: true }));
   });
 
-  server.listen(options.port, "0.0.0.0");
+  await new Promise<void>((resolve) => {
+    server.listen(options.port, "0.0.0.0", resolve);
+  });
   return server;
 }

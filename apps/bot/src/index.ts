@@ -21,7 +21,7 @@ const bot = createCourseBot({
 startOutboxWorker(api, bot.api);
 
 if (config.BOT_MODE === "webhook") {
-  startWebhookServer({
+  await startWebhookServer({
     bot,
     port: config.PORT,
     secretToken: config.TELEGRAM_WEBHOOK_SECRET
