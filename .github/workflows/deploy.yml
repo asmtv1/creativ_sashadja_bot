@@ -231,19 +231,14 @@ jobs:
           echo "Disk before cleanup:"
           df -h /
 
-          docker compose -p tgbot down --remove-orphans 2>/dev/null || true
-          docker builder prune -af 2>/dev/null || true
-          docker buildx prune -af 2>/dev/null || true
-          docker image prune -af 2>/dev/null || true
+          KEEP_PROJECT=tgbot sh infra/scripts/prod-cleanup.sh
 
           echo "Disk after cleanup:"
           df -h /
 
-          docker compose -p tgbot build api
-          docker compose -p tgbot build bot
-          docker compose -p tgbot build miniapp
+          docker compose -p tgbot build api bot miniapp migrate
           docker compose -p tgbot up -d postgres
-          docker compose -p tgbot run --rm -T api npx --yes prisma@6.19.3 migrate deploy --schema packages/db/prisma/schema.prisma
+          docker compose -p tgbot run --rm -T migrate
           docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180
           docker compose -p tgbot ps
           docker compose -p tgbot exec -T api wget -qO- http://127.0.0.1:3001/api/health
