@@ -52,7 +52,26 @@ describe("Mini App course flow components", () => {
 
     expect(screen.getByRole("heading", { name: "Course" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Lesson 1" })).toBeTruthy();
-    expect(screen.getByLabelText("О текущем уроке")).toBeTruthy();
+    expect(screen.getByLabelText("Твой лут")).toBeTruthy();
+    expect(screen.getAllByRole("link")).toHaveLength(10);
+    const voisLink = screen.getByRole("link", { name: "Открыть кейс: VOIS" });
+    expect(voisLink.getAttribute("href")).toBe(
+      "https://t.me/vois/5333"
+    );
+    expect(screen.getByText(/Instagram принадлежит компании Meta/)).toBeTruthy();
+
+    const openLink = vi.fn();
+    window.Telegram = {
+      WebApp: {
+        initData: "",
+        ready: vi.fn(),
+        expand: vi.fn(),
+        openLink,
+        close: vi.fn()
+      }
+    };
+    fireEvent.click(voisLink);
+    expect(openLink).toHaveBeenCalledWith("https://t.me/vois/5333");
     expect(screen.queryByRole("button", { name: /на весь экран/i })).toBeNull();
     const player = screen.getByTitle("Lesson 1");
     expect(player.getAttribute("src")).toBe("https://kinescope.io/embed/secret");

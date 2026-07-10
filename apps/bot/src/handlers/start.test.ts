@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { handleStart } from "./start";
 import { BotHandlerContext } from "../types";
 
-function createContext(): BotHandlerContext & { replies: Array<{ text: string; options?: unknown }> } {
+function createContext(): BotHandlerContext & {
+  replies: Array<{ text: string; options?: unknown }>;
+  photos: Array<{ photo: unknown; options?: unknown }>;
+} {
   return {
     from: {
       id: 42,
@@ -12,8 +15,12 @@ function createContext(): BotHandlerContext & { replies: Array<{ text: string; o
       language_code: "ru"
     },
     replies: [],
+    photos: [],
     async reply(text: string, options?: unknown) {
       this.replies.push({ text, options });
+    },
+    async replyWithPhoto(photo: unknown, options?: unknown) {
+      this.photos.push({ photo, options });
     }
   };
 }
@@ -43,9 +50,11 @@ describe("handleStart", () => {
       miniAppUrl: "https://course.example.com"
     });
 
-    expect(ctx.replies.at(-1)?.text).toContain("Меня зовут Саша Черезова");
-    expect(ctx.replies.at(-1)?.text).toContain("Геймификация в контенте");
-    expect(JSON.stringify(ctx.replies.at(-1)?.options)).toContain("Геймификация в контенте");
+    expect(ctx.photos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Меня зовут Саша Черезова"),
+      parse_mode: "HTML"
+    });
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Геймификация в контенте");
   });
 
   it("does not crash /start when the API is temporarily unavailable", async () => {
@@ -60,7 +69,10 @@ describe("handleStart", () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(ctx.replies.at(-1)?.text).toContain("Меня зовут Саша Черезова");
-    expect(JSON.stringify(ctx.replies.at(-1)?.options)).toContain("Геймификация в контенте");
+    expect(ctx.photos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Меня зовут Саша Черезова"),
+      parse_mode: "HTML"
+    });
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Геймификация в контенте");
   });
 });

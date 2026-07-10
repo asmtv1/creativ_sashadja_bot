@@ -346,6 +346,54 @@ html.player-fullscreen-open body {
 .lesson-summary__hint span { color: #ffcc45; font-size: 20px; }
 .lesson-summary__hint p { margin: 0; color: #e7ddf1; font-size: 13px; line-height: 1.35; }
 
+.lesson-loot h2 { margin-bottom: 8px; color: #ffcc45; text-shadow: 2px 2px 0 #5e2388; }
+.lesson-loot > p { font-size: 14px; }
+
+.lesson-loot__links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 22px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson-loot__links a {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid rgb(207 132 255 / 46%);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+  background: rgb(63 27 103 / 58%);
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.lesson-loot__links a:hover,
+.lesson-loot__links a:focus-visible {
+  border-color: #ffcc45;
+  background: #4c2079;
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.lesson-loot__number { color: #ffcc45; font-size: 10px; font-weight: 900; letter-spacing: 0.04em; }
+.lesson-loot__arrow { color: #b9ff39; font-size: 16px; line-height: 1; }
+
+.lesson-loot__notice {
+  margin-top: 0 !important;
+  color: #bba1d6 !important;
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
 @media (max-width: 720px) {
   .game-course-shell { padding: 0; }
   .game-course { min-height: 100dvh; border-width: 0; border-radius: 0; }
@@ -353,6 +401,10 @@ html.player-fullscreen-open body {
   .course-progress__track { width: min(55vw, 230px); }
   .course-stage { grid-template-columns: 1fr; }
   .lesson-quest-list { order: 2; }
+}
+
+@media (max-width: 390px) {
+  .lesson-loot__links { grid-template-columns: 1fr; }
 }
 
 .error {

@@ -1,6 +1,7 @@
+import { InputFile } from "grammy";
 import { buyCourseKeyboard, openCourseKeyboard } from "../keyboards";
+import { START_MESSAGE, WELCOME_IMAGE_PATH } from "../content";
 import { BotApi, BotHandlerContext } from "../types";
-import { START_MESSAGE } from "../content";
 
 export async function handleStart(
   ctx: BotHandlerContext,
@@ -33,9 +34,16 @@ export async function handleStart(
     return;
   }
 
-  await ctx.reply(START_MESSAGE, {
-    ...buyCourseKeyboard()
-  });
+  if (ctx.replyWithPhoto) {
+    await ctx.replyWithPhoto(new InputFile(WELCOME_IMAGE_PATH), {
+      caption: START_MESSAGE,
+      parse_mode: "HTML",
+      ...buyCourseKeyboard()
+    });
+    return;
+  }
+
+  await ctx.reply(START_MESSAGE, { ...buyCourseKeyboard() });
 }
 
 function requireTelegramUser(ctx: BotHandlerContext) {

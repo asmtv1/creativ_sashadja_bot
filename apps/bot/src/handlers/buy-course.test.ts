@@ -8,6 +8,7 @@ import { BotHandlerContext } from "../types";
 
 function createContext(): BotHandlerContext & {
   replies: Array<{ text: string; options?: unknown }>;
+  videos: Array<{ video: unknown; options?: unknown }>;
   invoices: Array<{
     title: string;
     description: string;
@@ -29,8 +30,12 @@ function createContext(): BotHandlerContext & {
   return {
     from: { id: 42, first_name: "Ivan" },
     replies: [],
+    videos: [],
     async reply(text: string, options?: unknown) {
       this.replies.push({ text, options });
+    },
+    async replyWithVideo(video: unknown, options?: unknown) {
+      this.videos.push({ video, options });
     },
     invoices: [],
     async replyWithInvoice(
@@ -74,9 +79,16 @@ describe("buy course handlers", () => {
       }
     });
 
-    expect(ctx.replies.at(-1)?.text).toContain("Всё об уроке");
-    expect(ctx.replies.at(-1)?.text).toContain("Длительность: 33 минуты");
-    expect(ctx.replies.at(-1)?.text).toContain("Цена: 599 руб");
+    expect(ctx.videos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Всё об уроке"),
+      parse_mode: "HTML"
+    });
+    expect(ctx.videos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Длительность: 33 минуты")
+    });
+    expect(ctx.videos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Цена: 599 руб")
+    });
     expect(ctx.invoices.at(-1)).toMatchObject({
       title: "Креативный контент | обучение",
       payload: "order_1",
@@ -97,9 +109,12 @@ describe("buy course handlers", () => {
       }
     });
 
-    expect(ctx.replies.at(-1)?.text).toContain("Всё об уроке");
-    expect(ctx.replies.at(-1)?.text).toContain("Цена: 599 руб");
-    expect(JSON.stringify(ctx.replies.at(-1)?.options)).toContain("Оплатить 599 ₽");
+    expect(ctx.videos.at(-1)?.options).toMatchObject({
+      caption: expect.stringContaining("Всё об уроке"),
+      parse_mode: "HTML",
+      reply_markup: expect.anything()
+    });
+    expect(JSON.stringify(ctx.videos.at(-1)?.options)).toContain("Оплатить 599 ₽");
     expect(ctx.invoices).toHaveLength(0);
   });
 

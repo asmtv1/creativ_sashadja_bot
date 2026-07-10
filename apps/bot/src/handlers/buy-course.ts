@@ -1,3 +1,4 @@
+import { InputFile } from "grammy";
 import { openCourseKeyboard, screenshotPaymentKeyboard } from "../keyboards";
 import {
   BotApi,
@@ -5,7 +6,12 @@ import {
   BotPreCheckoutContext,
   BotSuccessfulPaymentContext
 } from "../types";
-import { LESSON_PAYMENT_MESSAGE, LESSON_TITLE, PAYMENT_SUCCESS_MESSAGE } from "../content";
+import {
+  LESSON_PAYMENT_MESSAGE,
+  LESSON_PREVIEW_VIDEO_PATH,
+  LESSON_TITLE,
+  PAYMENT_SUCCESS_MESSAGE
+} from "../content";
 
 export async function handleBuyCourse(
   ctx: BotHandlerContext,
@@ -13,9 +19,7 @@ export async function handleBuyCourse(
 ) {
   const telegramId = requireTelegramId(ctx);
   if (!deps.paymentProviderToken) {
-    await ctx.reply(LESSON_PAYMENT_MESSAGE, {
-      ...screenshotPaymentKeyboard()
-    });
+    await sendLessonPaymentPost(ctx, screenshotPaymentKeyboard());
     return;
   }
   if (!ctx.replyWithInvoice) {
@@ -37,7 +41,7 @@ export async function handleBuyCourse(
     return;
   }
 
-  await ctx.reply(LESSON_PAYMENT_MESSAGE);
+  await sendLessonPaymentPost(ctx);
   await ctx.replyWithInvoice(
     order.title,
     order.description,
@@ -46,6 +50,19 @@ export async function handleBuyCourse(
     [{ label: LESSON_TITLE, amount: order.amountKopecks }],
     { provider_token: deps.paymentProviderToken }
   );
+}
+
+async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) {
+  if (ctx.replyWithVideo) {
+    await ctx.replyWithVideo(new InputFile(LESSON_PREVIEW_VIDEO_PATH), {
+      caption: LESSON_PAYMENT_MESSAGE,
+      parse_mode: "HTML",
+      ...(options ?? {})
+    });
+    return;
+  }
+
+  await ctx.reply(LESSON_PAYMENT_MESSAGE, options);
 }
 
 export async function handlePreCheckout(

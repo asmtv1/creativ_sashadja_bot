@@ -2,12 +2,26 @@
 
 import { useState } from "react";
 import { CourseDto, LessonDto } from "@course/shared";
+import { openExternalUrl } from "../lib/telegram";
 import { LessonPlayer } from "./LessonPlayer";
 
 type CourseLessonsProps = {
   course: CourseDto;
   lessons: LessonDto[];
 };
+
+const LESSON_LOOT = [
+  { title: "VOIS", href: "https://t.me/vois/5333" },
+  { title: "Яндекс Музыка", href: "https://t.me/yandexmusic_live/10484" },
+  { title: "Самокат", href: "https://t.me/samokatwithlove/4321" },
+  { title: "Яндекс Лавка", href: "https://t.me/yandex_lavka_tg/1272" },
+  { title: "Додо Пицца", href: "https://t.me/dodorus/24" },
+  { title: "ВкусВилл", href: "https://t.me/we_are_vkusvill/8405" },
+  { title: "Золотое Яблоко", href: "https://t.me/goldapple/25471" },
+  { title: "ЕГЭHub", href: "https://t.me/egehub_ed/2480" },
+  { title: "Colleagtion", href: "https://t.me/colleagtion/3032" },
+  { title: "Instagram", href: "https://www.instagram.com/reel/DZgmWDyuPPF/?igsh=MWE1bnB0Zm5zM211ZQ==" }
+] as const;
 
 export function CourseLessons({ course, lessons }: CourseLessonsProps) {
   const [activeSlug, setActiveSlug] = useState(lessons[0]?.slug ?? "");
@@ -66,16 +80,31 @@ export function CourseLessons({ course, lessons }: CourseLessonsProps) {
               })}
             </nav>
           ) : activeLesson ? (
-            <aside className="lesson-summary" aria-label="О текущем уроке">
-              <div className="lesson-summary__topline"><span aria-hidden="true">✦</span> ТВОЙ ПЕРВЫЙ ШАГ</div>
-              <div className="lesson-summary__level" aria-hidden="true">01</div>
-              <h2>Один урок —<br />одна практика</h2>
-              <p>Смотри в своём темпе, возвращайся к важным моментам и пробуй сразу применить идеи.</p>
-              <dl className="lesson-summary__stats">
-                <div><dt>В ФОРМАТЕ</dt><dd>Видео-урок</dd></div>
-                <div><dt>ДОСТУП</dt><dd><span aria-hidden="true">●</span> Открыт</dd></div>
-              </dl>
-              <div className="lesson-summary__hint"><span aria-hidden="true">✦</span><p>Нажми на плеер, чтобы начать просмотр.</p></div>
+            <aside className="lesson-summary lesson-loot" aria-label="Твой лут">
+              <div className="lesson-summary__topline"><span aria-hidden="true">✦</span> БОНУС-КОЛЛЕКЦИЯ</div>
+              <h2>Твой лут</h2>
+              <p>10 кейсов из урока — забирай ссылки и разбирай игровые механики.</p>
+              <ol className="lesson-loot__links">
+                {LESSON_LOOT.map((item, index) => (
+                  <li key={item.href}>
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Открыть кейс: ${item.title}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        openExternalUrl(item.href);
+                      }}
+                    >
+                      <span className="lesson-loot__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                      <span>{item.title}</span>
+                      <span className="lesson-loot__arrow" aria-hidden="true">↗</span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+              <p className="lesson-loot__notice">Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой на территории Российской Федерации.</p>
             </aside>
           ) : null}
         </div>

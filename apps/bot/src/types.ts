@@ -14,6 +14,8 @@ export type BotHandlerContext = {
     language_code?: string;
   };
   reply(text: string, options?: unknown): Promise<unknown>;
+  replyWithPhoto?(photo: unknown, options?: unknown): Promise<unknown>;
+  replyWithVideo?(video: unknown, options?: unknown): Promise<unknown>;
   replyWithInvoice?(
     title: string,
     description: string,
