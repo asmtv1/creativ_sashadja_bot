@@ -2,6 +2,7 @@ import { Api } from "grammy";
 import { InternalApiClient } from "./api/client";
 import { createCourseBot } from "./bot";
 import { loadConfig } from "./config";
+import { syncBotMenuButton } from "./menu-button";
 import { runOutboxBatch } from "./outbox-worker";
 import { startWebhookServer } from "./webhook-server";
 
@@ -47,21 +48,4 @@ function startOutboxWorker(internalApi: InternalApiClient, telegram: Api) {
       }
     });
   }, 5_000);
-}
-
-async function syncBotMenuButton(telegram: Api, miniAppUrl: string) {
-  try {
-    await telegram.setChatMenuButton({
-      menu_button: {
-        type: "web_app",
-        text: "Открыть курс",
-        web_app: { url: miniAppUrl }
-      }
-    });
-  } catch (error) {
-    console.warn(
-      "Failed to sync Telegram bot menu button",
-      error instanceof Error ? error.message : "Unknown Telegram API error"
-    );
-  }
 }

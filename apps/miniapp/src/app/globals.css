@@ -98,8 +98,7 @@ a {
 }
 
 .player-wrap {
-  display: grid;
-  gap: 12px;
+  display: block;
 }
 
 .player {
@@ -108,11 +107,6 @@ a {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #101114;
-}
-
-.fullscreen-button {
-  justify-self: end;
-  background: #111827;
 }
 
 .error {

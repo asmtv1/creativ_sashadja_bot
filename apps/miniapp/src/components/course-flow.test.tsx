@@ -45,9 +45,10 @@ describe("Mini App course flow components", () => {
     );
 
     expect(screen.getByText("вот ваш урок. смотрите")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /на весь экран/i })).toBeTruthy();
-    expect(screen.getByTitle("Lesson 1").getAttribute("src")).toBe(
-      "https://kinescope.io/embed/secret"
-    );
+    expect(screen.queryByRole("button", { name: /на весь экран/i })).toBeNull();
+    const player = screen.getByTitle("Lesson 1");
+    expect(player.getAttribute("src")).toBe("https://kinescope.io/embed/secret");
+    expect(player.getAttribute("allow")).toContain("fullscreen");
+    expect(player.hasAttribute("allowfullscreen")).toBe(true);
   });
 });

@@ -19,6 +19,27 @@ test("deploy starts the tgbot stack after the migration-and-seed container", () 
   assert.ok(migrate < start);
 });
 
+test("deploy keeps long SSH operations alive and reports server-side failures", () => {
+  assert.match(workflow, /ServerAliveInterval=15/);
+  assert.match(workflow, /ServerAliveCountMax=20/);
+  assert.match(workflow, /docker compose -p tgbot logs --tail=200/);
+});
+
+test("deploy publishes current only after the public healthcheck passes", () => {
+  const healthcheck = workflow.indexOf('curl -fsS --retry 12 --retry-delay 5 "https://${CADDY_SITE_ADDRESS}/api/health"');
+  const publishCurrent = workflow.indexOf('ln -sfn "$release_dir" "$DEPLOY_PATH/current"');
+
+  assert.notEqual(healthcheck, -1);
+  assert.notEqual(publishCurrent, -1);
+  assert.ok(healthcheck < publishCurrent);
+});
+
+test("deploy ships Caddy and reclaims old app images without touching Postgres", () => {
+  assert.match(workflow, /docker save[^\n]+caddy:2-alpine/);
+  assert.match(workflow, /docker compose -p tgbot stop api bot miniapp caddy/);
+  assert.doesNotMatch(workflow, /docker compose -p tgbot stop[^\n]+postgres/);
+});
+
 test("migration image applies the schema before the idempotent seed", () => {
   assert.match(migrateDockerfile, /pnpm db:migrate:deploy && pnpm db:seed/);
 });

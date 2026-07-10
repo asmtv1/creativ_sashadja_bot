@@ -12,7 +12,7 @@ describe("seed course content", () => {
       "nAY1GccmG13EoGsGsZAVST"
     );
     expect(seedCourse.lessons[0]?.kinescopeEmbedUrl).toBe(
-      "https://kinescope.io/nAY1GccmG13EoGsGsZAVST/plxSBXua"
+      "https://kinescope.io/embed/nAY1GccmG13EoGsGsZAVST"
     );
   });
 });

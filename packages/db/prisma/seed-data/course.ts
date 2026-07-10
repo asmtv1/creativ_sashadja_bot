@@ -15,7 +15,7 @@ export const seedCourse = {
         "Урок о том, как работает геймифицированный контент, с разбором кейсов брендов и техникой придумывания своих идей.",
       durationSeconds: 1980,
       kinescopeVideoId: "nAY1GccmG13EoGsGsZAVST",
-      kinescopeEmbedUrl: "https://kinescope.io/nAY1GccmG13EoGsGsZAVST/plxSBXua",
+      kinescopeEmbedUrl: "https://kinescope.io/embed/nAY1GccmG13EoGsGsZAVST",
       posterUrl: null,
       isPublished: true
     }

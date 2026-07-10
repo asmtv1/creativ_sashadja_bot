@@ -194,6 +194,7 @@ jobs:
           MIGRATE_IMAGE: tgbot/migrate:${{ github.sha }}
         run: |
           set -euo pipefail
+          docker pull caddy:2-alpine
           docker compose build api bot miniapp migrate
 
       - name: Package deployment bundle
@@ -204,7 +205,7 @@ jobs:
           MIGRATE_IMAGE: tgbot/migrate:${{ github.sha }}
         run: |
           set -euo pipefail
-          docker save "$API_IMAGE" "$BOT_IMAGE" "$MINIAPP_IMAGE" "$MIGRATE_IMAGE" | gzip > images.tar.gz
+          docker save "$API_IMAGE" "$BOT_IMAGE" "$MINIAPP_IMAGE" "$MIGRATE_IMAGE" caddy:2-alpine | gzip > images.tar.gz
           tar -czf release.tar.gz docker-compose.yml infra/caddy/Caddyfile infra/scripts/prod-cleanup.sh
 
       - name: Upload release
@@ -213,8 +214,8 @@ jobs:
           port="${DEPLOY_PORT:-22}"
           remote="$DEPLOY_USER@$DEPLOY_HOST"
           escaped_path="$(printf '%q' "$DEPLOY_PATH")"
-          ssh -i ~/.ssh/deploy_key -p "$port" "$remote" "mkdir -p $escaped_path/releases $escaped_path/shared"
-          scp -i ~/.ssh/deploy_key -P "$port" release.tar.gz images.tar.gz .deploy.env "$remote:$DEPLOY_PATH/"
+          ssh -i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=15 -o ServerAliveCountMax=20 "$remote" "mkdir -p $escaped_path/releases"
+          scp -i ~/.ssh/deploy_key -P "$port" -o ServerAliveInterval=15 -o ServerAliveCountMax=20 release.tar.gz images.tar.gz .deploy.env "$remote:$DEPLOY_PATH/"
 
       - name: Deploy on server
         run: |
@@ -222,28 +223,39 @@ jobs:
           port="${DEPLOY_PORT:-22}"
           remote="$DEPLOY_USER@$DEPLOY_HOST"
           remote_env="$(printf 'DEPLOY_PATH=%q GITHUB_SHA=%q' "$DEPLOY_PATH" "$GITHUB_SHA")"
-          ssh -i ~/.ssh/deploy_key -p "$port" "$remote" "$remote_env bash -se" <<'REMOTE'
+          ssh -i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=15 -o ServerAliveCountMax=20 "$remote" "$remote_env bash -se" <<'REMOTE'
           set -euo pipefail
 
           release_dir="$DEPLOY_PATH/releases/$GITHUB_SHA"
           archive_path="$DEPLOY_PATH/release.tar.gz"
           images_path="$DEPLOY_PATH/images.tar.gz"
-          shared_env_path="$DEPLOY_PATH/shared/.env"
 
-          mkdir -p "$release_dir" "$DEPLOY_PATH/shared"
-          mv "$DEPLOY_PATH/.deploy.env" "$shared_env_path"
-          chmod 600 "$shared_env_path"
+          mkdir -p "$release_dir"
+          mv "$DEPLOY_PATH/.deploy.env" "$release_dir/.env"
+          chmod 600 "$release_dir/.env"
 
           tar -xzf "$archive_path" -C "$release_dir"
           rm -f "$archive_path"
-          ln -sfn "$shared_env_path" "$release_dir/.env"
-          ln -sfn "$release_dir" "$DEPLOY_PATH/current"
 
-          cd "$DEPLOY_PATH/current"
+          cd "$release_dir"
+
+          report_failure() {
+            status=$?
+            echo "Deployment failed. Current Compose status:"
+            docker compose -p tgbot ps -a || true
+            echo "Recent service logs:"
+            docker compose -p tgbot logs --tail=200 api bot miniapp caddy postgres || true
+            exit "$status"
+          }
+          trap report_failure ERR
 
           echo "Disk before cleanup:"
           df -h /
 
+          # The VPS is intentionally small. Remove the old application containers
+          # before pruning their images; PostgreSQL and its named volume stay online.
+          docker compose -p tgbot stop api bot miniapp caddy || true
+          docker compose -p tgbot rm -f api bot miniapp caddy || true
           KEEP_PROJECT=tgbot sh infra/scripts/prod-cleanup.sh
 
           echo "Disk after cleanup:"
@@ -260,11 +272,17 @@ jobs:
           docker compose -p tgbot exec -T bot wget -qO- http://127.0.0.1:3002/health
           docker compose -p tgbot exec -T miniapp wget -qO- http://127.0.0.1:3000 >/dev/null
           set -a
-          . "$shared_env_path"
+          . "$release_dir/.env"
           set +a
           curl -fsS --retry 12 --retry-delay 5 "https://${CADDY_SITE_ADDRESS}/api/health"
 
+          ln -sfn "$release_dir" "$DEPLOY_PATH/current"
+          trap - ERR
+
           docker builder prune -af --filter "until=24h" 2>/dev/null || true
 
-          find "$DEPLOY_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -5 | xargs -r rm -rf
+          find "$DEPLOY_PATH/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+            | sort -nr \
+            | awk 'NR > 5 { print $2 }' \
+            | xargs -r rm -rf
           REMOTE

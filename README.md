@@ -152,6 +152,14 @@ The cleanup script stops Compose projects other than `tgbot` and prunes stopped
 containers plus unused images/build cache. It intentionally does not prune named
 volumes, so the production database volume is preserved.
 
+Each push to `main` builds the application images in GitHub Actions, uploads the
+bundle with SSH keepalives, runs migrations and the idempotent course seed, waits
+for all container and public healthchecks, and only then switches the `current`
+release symlink. If a server-side step fails, the workflow prints Compose status
+and recent service logs directly in the Actions run. The small production VPS
+keeps PostgreSQL online while old application containers and images are reclaimed
+before the new image bundle is loaded.
+
 Database schema changes are deployed with `prisma migrate deploy` from committed
 SQL migration files under `packages/db/prisma/migrations`; the same migration
 container then runs the idempotent course seed before the full stack starts, so
