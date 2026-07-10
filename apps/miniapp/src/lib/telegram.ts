@@ -21,3 +21,11 @@ export function openExternalUrl(url: string) {
 export function closeTelegramWebApp() {
   window.Telegram?.WebApp.close();
 }
+
+export function requestTelegramFullscreen() {
+  window.Telegram?.WebApp.requestFullscreen?.();
+}
+
+export function exitTelegramFullscreen() {
+  window.Telegram?.WebApp.exitFullscreen?.();
+}

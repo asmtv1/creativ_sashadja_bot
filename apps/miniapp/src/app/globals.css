@@ -102,11 +102,30 @@ a {
 }
 
 .player {
+  display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #101114;
+}
+
+html.player-fullscreen-open,
+html.player-fullscreen-open body {
+  overflow: hidden;
+}
+
+.player.player-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: #000;
 }
 
 .error {

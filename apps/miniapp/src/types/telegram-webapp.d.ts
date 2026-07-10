@@ -7,6 +7,8 @@ declare global {
         initData: string;
         ready(): void;
         expand(): void;
+        requestFullscreen?(): void;
+        exitFullscreen?(): void;
         openLink(url: string): void;
         close(): void;
       };
