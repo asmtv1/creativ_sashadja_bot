@@ -11,7 +11,7 @@ test("production compose project name is stable", () => {
 });
 
 test("deploy starts the tgbot stack after the migration-and-seed container", () => {
-  const migrate = workflow.indexOf("docker compose -p tgbot run --rm -T --no-build migrate");
+  const migrate = workflow.indexOf("docker compose -p tgbot run --rm -T migrate");
   const start = workflow.indexOf("docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180");
 
   assert.notEqual(migrate, -1);
