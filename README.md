@@ -78,13 +78,14 @@ After deploy:
 ## CI/CD
 
 Pushes to `main` run GitHub Actions CI and then deploy to the VPS over SSH.
-The server does not need GitHub repository access: the workflow archives the
-checked-out commit, uploads it to the server, writes `.env` from GitHub Secrets,
-stops obsolete non-`tgbot` Compose projects, prunes unused containers/images/build
-cache without deleting named volumes, applies pending Prisma schema migrations
-through the dedicated `migrate` Compose service, and runs Docker Compose from a release
-directory. The production Compose stack owns the server's public `80` and `443`
-ports through its bundled Caddy service.
+Application images (`api`, `bot`, `miniapp`, and `migrate`) are built on the
+GitHub Actions runner, exported into `images.tar.gz`, and uploaded to the server
+with a small release bundle. The server no longer builds application containers:
+it only loads the prebuilt images, writes `.env` from GitHub Secrets, stops
+obsolete non-`tgbot` Compose projects, applies pending Prisma schema migrations
+through the dedicated prebuilt `migrate` image, and starts Docker Compose from a
+release directory with `--no-build`. The production Compose stack owns the
+server's public `80` and `443` ports through its bundled Caddy service.
 
 Required GitHub Actions secrets:
 
@@ -125,14 +126,17 @@ The workflow generates the production `.env` from these separate secrets.
 `DATABASE_URL` is generated automatically from `POSTGRES_USER`,
 `POSTGRES_PASSWORD`, and `POSTGRES_DB`. `API_BASE_URL=http://api:3001`,
 `BOT_MODE=webhook`, and `NEXT_PUBLIC_API_BASE_URL=` are fixed by the workflow
-for the current Caddy routing shape. Deployment verifies container healthchecks
-and then checks `https://$CADDY_SITE_ADDRESS/api/health` through public Caddy.
+for the current Caddy routing shape. The workflow also writes the exact image
+tags for the current commit into `.env` (`API_IMAGE`, `BOT_IMAGE`,
+`MINIAPP_IMAGE`, and `MIGRATE_IMAGE`), so the server starts the same images that
+were built in GitHub Actions. Deployment verifies container healthchecks and
+then checks `https://$CADDY_SITE_ADDRESS/api/health` through public Caddy.
 
 Server prerequisites:
 
 - Docker with the Compose v2 plugin.
-- `curl`, `tar`, and SSH access for the deploy user.
-- The deploy user must be able to run `docker compose`.
+- `curl`, `tar`, `gzip`, and SSH access for the deploy user.
+- The deploy user must be able to run `docker compose` and `docker load`.
 - Ports `80` and `443` must be free for this project; do not run another public
   reverse proxy on the same host unless `docker-compose.yml` is changed.
 
