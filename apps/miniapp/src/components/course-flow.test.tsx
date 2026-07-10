@@ -50,7 +50,9 @@ describe("Mini App course flow components", () => {
       />
     );
 
-    expect(screen.getByText("вот ваш урок. смотрите")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Course" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Lesson 1" })).toBeTruthy();
+    expect(screen.getByLabelText("О текущем уроке")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /на весь экран/i })).toBeNull();
     const player = screen.getByTitle("Lesson 1");
     expect(player.getAttribute("src")).toBe("https://kinescope.io/embed/secret");

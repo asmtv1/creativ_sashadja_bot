@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <body>
         <Script src="https://telegram.org/js/telegram-web-app.js?62" strategy="beforeInteractive" />
         {children}

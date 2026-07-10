@@ -128,6 +128,233 @@ html.player-fullscreen-open body {
   background: #000;
 }
 
+.game-course-shell {
+  min-height: 100dvh;
+  padding: clamp(12px, 3vw, 34px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 12%, rgb(156 73 255 / 28%), transparent 24rem),
+    radial-gradient(circle at 90% 78%, rgb(74 35 181 / 45%), transparent 30rem),
+    #090619;
+}
+
+.game-course {
+  position: relative;
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 44px);
+  overflow: hidden;
+  border: 2px solid #8c38e9;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgb(110 44 202 / 18%), transparent 35%),
+    linear-gradient(320deg, rgb(28 13 71 / 80%), rgb(10 8 29 / 96%));
+  box-shadow: 0 0 0 5px rgb(86 31 151 / 30%), 0 26px 80px rgb(0 0 0 / 50%);
+}
+
+.game-course::before,
+.game-course::after {
+  position: absolute;
+  width: 148px;
+  height: 148px;
+  border: 28px solid rgb(166 79 255 / 35%);
+  content: "";
+  pointer-events: none;
+  transform: rotate(45deg);
+}
+
+.game-course::before { top: -102px; left: -102px; }
+.game-course::after { right: -102px; bottom: -102px; }
+
+.course-hud,
+.course-stage { position: relative; z-index: 1; }
+
+.course-hud {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 28px;
+}
+
+.pixel-kicker,
+.course-progress__label,
+.lesson-badge,
+.lesson-now,
+.lesson-quest-list__heading h2 { font-weight: 800; letter-spacing: 0.08em; }
+
+.pixel-kicker { display: block; color: #bc5cff; font-size: 12px; }
+
+.course-hud h1 {
+  max-width: 720px;
+  margin: 5px 0 0;
+  color: #fff;
+  font-size: clamp(30px, 6vw, 56px);
+  line-height: 1;
+  text-shadow: 3px 3px 0 #4b1587;
+}
+
+.course-progress { display: flex; align-items: center; min-width: min(100%, 270px); gap: 10px; color: #fff; }
+.course-progress__icon { color: #ffcc45; font-size: 28px; text-shadow: 0 0 16px #ff9d00; }
+.course-progress__label,
+.course-progress__value { display: block; font-size: 10px; }
+.course-progress__label { color: #dfbaff; }
+.course-progress__value { margin-top: 5px; color: #fff; }
+
+.course-progress__track {
+  width: 200px;
+  height: 13px;
+  margin-top: 5px;
+  overflow: hidden;
+  border: 2px solid #a95af1;
+  border-radius: 3px;
+  background: #160a35;
+}
+
+.course-progress__track span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ffbe2e, #ffdc64);
+  box-shadow: 0 0 12px #ffbd22;
+}
+
+.course-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.7fr);
+  align-items: start;
+  gap: clamp(18px, 3vw, 34px);
+}
+
+.lesson-player-panel,
+.lesson-quest-list {
+  border: 1px solid #a744e9;
+  border-radius: 14px;
+  background: rgb(4 4 16 / 76%);
+  box-shadow: inset 0 0 28px rgb(106 30 176 / 16%), 0 12px 30px rgb(0 0 0 / 20%);
+}
+
+.lesson-player-panel { padding: clamp(14px, 2.5vw, 26px); }
+.lesson-player-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.lesson-badge {
+  padding: 5px 9px;
+  border: 1px solid #d191ff;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  background: #6520aa;
+}
+
+.lesson-now { color: #b9ff39; font-size: 10px; }
+.lesson-player-panel h2 { margin: 16px 0 4px; color: #fff; font-size: clamp(22px, 3vw, 34px); }
+.lesson-player-panel p { margin: 0 0 18px; color: #d5cde3; }
+
+.player-frame {
+  overflow: hidden;
+  border: 2px solid #7d35c4;
+  border-radius: 8px;
+  background: #000;
+  box-shadow: 0 0 0 4px rgb(54 17 95 / 75%);
+}
+
+.player { border: 0; border-radius: 0; }
+.lesson-quest-list { padding: 12px; }
+.lesson-quest-list__heading { display: flex; align-items: center; gap: 9px; padding: 8px 10px 14px; color: #ffca40; }
+.lesson-quest-list__heading span { font-size: 22px; }
+.lesson-quest-list__heading h2 { margin: 0; color: #fff; font-size: 13px; }
+
+.lesson-quest {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 16px;
+  align-items: center;
+  width: 100%;
+  min-height: 68px;
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #e7def2;
+  text-align: left;
+  background: #120b29;
+}
+
+.lesson-quest:hover { background: #20103f; }
+.lesson-quest.active { border-color: #c05cff; background: linear-gradient(90deg, #482071, #21103e); }
+
+.lesson-quest__number {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid #ce7bff;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 800;
+  background: #7b2bc1;
+}
+
+.lesson-quest__content { min-width: 0; }
+.lesson-quest__content strong,
+.lesson-quest__content small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-quest__content strong { color: #fff; font-size: 14px; }
+.lesson-quest__content small { margin-top: 3px; color: #cbb9df; font-size: 11px; }
+.lesson-quest__arrow { color: #f4c650; font-size: 28px; line-height: 1; }
+
+.lesson-summary {
+  min-height: 100%;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid #a744e9;
+  border-radius: 14px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 14%, rgb(201 83 255 / 22%), transparent 7rem),
+    linear-gradient(160deg, rgb(70 29 113 / 70%), rgb(11 7 29 / 92%));
+  box-shadow: inset 0 0 28px rgb(106 30 176 / 16%), 0 12px 30px rgb(0 0 0 / 20%);
+}
+
+.lesson-summary__topline { color: #d28cff; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; }
+.lesson-summary__topline span { color: #ffcc45; font-size: 18px; vertical-align: -2px; }
+
+.lesson-summary__level {
+  margin: 22px 0 -6px;
+  color: #f6c84b;
+  font-size: clamp(64px, 8vw, 96px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.08em;
+  text-shadow: 4px 4px 0 #5e2388;
+}
+
+.lesson-summary h2 { margin: 12px 0 10px; font-size: clamp(22px, 2.5vw, 30px); line-height: 1.05; }
+.lesson-summary > p { margin: 0; color: #d9cbe8; font-size: 15px; line-height: 1.45; }
+
+.lesson-summary__stats {
+  display: grid;
+  gap: 12px;
+  margin: 28px 0;
+  padding: 16px 0;
+  border-top: 1px solid rgb(213 136 255 / 45%);
+  border-bottom: 1px solid rgb(213 136 255 / 45%);
+}
+
+.lesson-summary__stats div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.lesson-summary__stats dt { color: #bba1d6; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
+.lesson-summary__stats dd { margin: 0; font-size: 14px; font-weight: 700; }
+.lesson-summary__stats dd span { color: #b9ff39; font-size: 12px; }
+
+.lesson-summary__hint { display: flex; gap: 10px; padding: 12px; border-radius: 8px; background: rgb(151 62 220 / 20%); }
+.lesson-summary__hint span { color: #ffcc45; font-size: 20px; }
+.lesson-summary__hint p { margin: 0; color: #e7ddf1; font-size: 13px; line-height: 1.35; }
+
+@media (max-width: 720px) {
+  .game-course-shell { padding: 0; }
+  .game-course { min-height: 100dvh; border-width: 0; border-radius: 0; }
+  .course-hud { align-items: start; flex-direction: column; gap: 16px; }
+  .course-progress__track { width: min(55vw, 230px); }
+  .course-stage { grid-template-columns: 1fr; }
+  .lesson-quest-list { order: 2; }
+}
+
 .error {
   color: var(--danger);
 }
