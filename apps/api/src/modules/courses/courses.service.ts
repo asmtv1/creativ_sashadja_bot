@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { buildCourseAccessResponse } from "./course.presenter";
+import { buildCourseAccessResponse, withKinescopeWatermark } from "./course.presenter";
 
 @Injectable()
 export class CoursesService {
@@ -32,7 +32,14 @@ export class CoursesService {
       orderBy: { sortOrder: "asc" }
     });
 
-    return buildCourseAccessResponse({ hasAccess, course, lessons });
+    const viewer = hasAccess
+      ? await this.prisma.telegramUser.findUniqueOrThrow({
+          where: { id: userId },
+          select: { telegramId: true, username: true }
+        })
+      : undefined;
+
+    return buildCourseAccessResponse({ hasAccess, course, lessons, viewer });
   }
 
   async getLessonForUser(userId: string, lessonSlug: string) {
@@ -49,6 +56,14 @@ export class CoursesService {
       throw new NotFoundException("Lesson not found");
     }
 
-    return lesson;
+    const viewer = await this.prisma.telegramUser.findUniqueOrThrow({
+      where: { id: userId },
+      select: { telegramId: true, username: true }
+    });
+
+    return {
+      ...lesson,
+      kinescopeEmbedUrl: withKinescopeWatermark(lesson.kinescopeEmbedUrl, viewer)
+    };
   }
 }

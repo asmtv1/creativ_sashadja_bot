@@ -73,7 +73,7 @@ After deploy:
 1. Set Telegram webhook with `secret_token` matching `TELEGRAM_WEBHOOK_SECRET`.
 2. Connect YooKassa payments for the bot in `@BotFather` and set `TELEGRAM_PAYMENT_PROVIDER_TOKEN`.
 3. Configure BotFather Mini App URL: `https://sasha.gafus.ru`.
-4. Configure Kinescope privacy/domain rules for the same domain.
+4. Configure Kinescope privacy/domain rules for the same domain. In the player template, enable a dynamic watermark (random or stripes); the API supplies each authorized viewer's verified Telegram ID and current username through the `watermark` embed parameter.
 
 ## CI/CD
 
