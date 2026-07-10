@@ -265,7 +265,10 @@ jobs:
           rm -f "$images_path"
 
           docker compose -p tgbot up -d postgres
-          docker compose -p tgbot run --rm -T migrate
+          # Compose run keeps stdin open by default and would otherwise consume
+          # the remaining SSH heredoc, silently skipping the startup commands.
+          docker compose -p tgbot run --rm -T migrate < /dev/null
+          echo "Database migration and seed completed; starting application stack."
           docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180 --no-build
           docker compose -p tgbot ps
           docker compose -p tgbot exec -T api wget -qO- http://127.0.0.1:3001/api/health
