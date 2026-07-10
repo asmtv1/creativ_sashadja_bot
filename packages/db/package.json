@@ -21,7 +21,8 @@
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.11.1"
+    "@prisma/client": "^6.11.1",
+    "tsx": "^4.23.0"
   },
   "devDependencies": {
     "@course/config": "workspace:*",

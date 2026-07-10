@@ -153,12 +153,15 @@ containers plus unused images/build cache. It intentionally does not prune named
 volumes, so the production database volume is preserved.
 
 Database schema changes are deployed with `prisma migrate deploy` from committed
-SQL migration files under `packages/db/prisma/migrations`.
+SQL migration files under `packages/db/prisma/migrations`; the same migration
+container then runs the idempotent course seed before the full stack starts, so
+required course and lesson rows exist after every deploy.
 
-Local database rows are never deployed. To change the production schema, update
+Ad-hoc local database rows are never deployed. To change the production schema, update
 `packages/db/prisma/schema.prisma`, run
 `pnpm --filter @course/db prisma:migrate -- --name <change-name>` against a
 local/test database, and commit both `schema.prisma` and the generated
 `packages/db/prisma/migrations/*/migration.sql`. Do not put test users, orders,
-or seed-only data into migration SQL. Seed data only runs when `pnpm db:seed` is
-called manually.
+or seed-only data into migration SQL. To change production course content,
+update `packages/db/prisma/seed-data/course.ts`; that idempotent seed is applied
+by deployment and can still be run manually with `pnpm db:seed`.
