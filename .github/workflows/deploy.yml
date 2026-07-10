@@ -87,6 +87,10 @@ jobs:
 
       - name: Build production env file
         env:
+          API_IMAGE: tgbot/api:${{ github.sha }}
+          BOT_IMAGE: tgbot/bot:${{ github.sha }}
+          MINIAPP_IMAGE: tgbot/miniapp:${{ github.sha }}
+          MIGRATE_IMAGE: tgbot/migrate:${{ github.sha }}
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
           CADDY_SITE_ADDRESS: ${{ secrets.CADDY_SITE_ADDRESS }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
@@ -171,29 +175,37 @@ jobs:
             line("API_BASE_URL", "http://api:3001"),
             line("BOT_MODE", "webhook"),
             line("COURSE_SLUG", env.COURSE_SLUG || "basic-course"),
-            line("NEXT_PUBLIC_API_BASE_URL", "")
+            line("NEXT_PUBLIC_API_BASE_URL", ""),
+            "",
+            line("API_IMAGE", env.API_IMAGE),
+            line("BOT_IMAGE", env.BOT_IMAGE),
+            line("MINIAPP_IMAGE", env.MINIAPP_IMAGE),
+            line("MIGRATE_IMAGE", env.MIGRATE_IMAGE)
           ];
 
           fs.writeFileSync(".deploy.env", `${lines.join("\n")}\n`, { mode: 0o600 });
           NODE
 
-      - name: Prepare release archive
+      - name: Build production images
+        env:
+          API_IMAGE: tgbot/api:${{ github.sha }}
+          BOT_IMAGE: tgbot/bot:${{ github.sha }}
+          MINIAPP_IMAGE: tgbot/miniapp:${{ github.sha }}
+          MIGRATE_IMAGE: tgbot/migrate:${{ github.sha }}
         run: |
           set -euo pipefail
-          archive_path="$RUNNER_TEMP/release.tar.gz"
-          tar \
-            --exclude=.git \
-            --exclude=.github \
-            --exclude=node_modules \
-            --exclude=.turbo \
-            --exclude=dist \
-            --exclude=.next \
-            --exclude=coverage \
-            --exclude='*.tsbuildinfo' \
-            --exclude=.deploy.env \
-            --exclude='.env*' \
-            -czf "$archive_path" .
-          cp "$archive_path" release.tar.gz
+          docker compose build api bot miniapp migrate
+
+      - name: Package deployment bundle
+        env:
+          API_IMAGE: tgbot/api:${{ github.sha }}
+          BOT_IMAGE: tgbot/bot:${{ github.sha }}
+          MINIAPP_IMAGE: tgbot/miniapp:${{ github.sha }}
+          MIGRATE_IMAGE: tgbot/migrate:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker save "$API_IMAGE" "$BOT_IMAGE" "$MINIAPP_IMAGE" "$MIGRATE_IMAGE" | gzip > images.tar.gz
+          tar -czf release.tar.gz docker-compose.yml infra/caddy/Caddyfile infra/docker infra/scripts/prod-cleanup.sh
 
       - name: Upload release
         run: |
@@ -202,7 +214,7 @@ jobs:
           remote="$DEPLOY_USER@$DEPLOY_HOST"
           escaped_path="$(printf '%q' "$DEPLOY_PATH")"
           ssh -i ~/.ssh/deploy_key -p "$port" "$remote" "mkdir -p $escaped_path/releases $escaped_path/shared"
-          scp -i ~/.ssh/deploy_key -P "$port" release.tar.gz .deploy.env "$remote:$DEPLOY_PATH/"
+          scp -i ~/.ssh/deploy_key -P "$port" release.tar.gz images.tar.gz .deploy.env "$remote:$DEPLOY_PATH/"
 
       - name: Deploy on server
         run: |
@@ -215,6 +227,7 @@ jobs:
 
           release_dir="$DEPLOY_PATH/releases/$GITHUB_SHA"
           archive_path="$DEPLOY_PATH/release.tar.gz"
+          images_path="$DEPLOY_PATH/images.tar.gz"
           shared_env_path="$DEPLOY_PATH/shared/.env"
 
           mkdir -p "$release_dir" "$DEPLOY_PATH/shared"
@@ -236,10 +249,12 @@ jobs:
           echo "Disk after cleanup:"
           df -h /
 
-          docker compose -p tgbot build api bot miniapp migrate
+          docker load -i "$images_path"
+          rm -f "$images_path"
+
           docker compose -p tgbot up -d postgres
-          docker compose -p tgbot run --rm -T migrate
-          docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180
+          docker compose -p tgbot run --rm -T --no-build migrate
+          docker compose -p tgbot up -d --remove-orphans --wait --wait-timeout 180 --no-build
           docker compose -p tgbot ps
           docker compose -p tgbot exec -T api wget -qO- http://127.0.0.1:3001/api/health
           docker compose -p tgbot exec -T bot wget -qO- http://127.0.0.1:3002/health
