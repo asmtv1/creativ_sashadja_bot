@@ -50,6 +50,7 @@ function createContext(): BotHandlerContext & {
     }
   } as BotHandlerContext & {
     replies: Array<{ text: string; options?: unknown }>;
+    videos: Array<{ video: unknown; options?: unknown }>;
     invoices: Array<{
       title: string;
       description: string;
