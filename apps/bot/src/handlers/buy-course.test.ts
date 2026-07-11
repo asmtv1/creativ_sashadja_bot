@@ -82,7 +82,10 @@ describe("buy course handlers", () => {
 
     expect(ctx.videos.at(-1)?.options).toMatchObject({
       caption: expect.stringContaining("Всё об уроке"),
-      parse_mode: "HTML"
+      parse_mode: "HTML",
+      width: 1280,
+      height: 800,
+      supports_streaming: true
     });
     expect(ctx.videos.at(-1)?.options).toMatchObject({
       caption: expect.stringContaining("Длительность: 33 минуты")

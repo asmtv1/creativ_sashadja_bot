@@ -57,6 +57,9 @@ async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) 
     await ctx.replyWithVideo(new InputFile(LESSON_PREVIEW_VIDEO_PATH), {
       caption: LESSON_PAYMENT_MESSAGE,
       parse_mode: "HTML",
+      width: 1280,
+      height: 800,
+      supports_streaming: true,
       ...(options ?? {})
     });
     return;

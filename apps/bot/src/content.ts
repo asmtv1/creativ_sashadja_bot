@@ -23,7 +23,7 @@ export const WELCOME_IMAGE_PATH = fileURLToPath(
 );
 
 export const LESSON_PREVIEW_VIDEO_PATH = fileURLToPath(
-  new URL("../assets/lesson-preview.mov", import.meta.url)
+  new URL("../assets/lesson-preview.mp4", import.meta.url)
 );
 
 export const LESSON_PAYMENT_MESSAGE = `<b>Всё об уроке «${LESSON_TITLE}»</b>
