@@ -23,6 +23,8 @@ const LESSON_LOOT = [
   { title: "TOP TEN BURGERS", href: "https://www.instagram.com/reel/DZgmWDyuPPF/?igsh=MWE1bnB0Zm5zM211ZQ==" }
 ] as const;
 
+const CREATIVE_IDEAS_FILE = "/downloads/30-creative-content-ideas.pdf";
+
 export function CourseLessons({ course, lessons }: CourseLessonsProps) {
   const [activeSlug, setActiveSlug] = useState(lessons[0]?.slug ?? "");
   const activeLesson = lessons.find((lesson) => lesson.slug === activeSlug) ?? lessons[0];
@@ -40,14 +42,20 @@ export function CourseLessons({ course, lessons }: CourseLessonsProps) {
             <span className="pixel-kicker">ВАШЕ ПРИКЛЮЧЕНИЕ</span>
             <h1>{course.title}</h1>
           </div>
-          <div className="course-progress" aria-label={`Открыт урок ${activeLessonIndex + 1} из ${lessons.length}`}>
-            <span className="course-progress__icon" aria-hidden="true">✦</span>
-            <div>
-              <span className="course-progress__label">ПУТЬ ПО КУРСУ</span>
-              <div className="course-progress__track" aria-hidden="true">
-                <span style={{ width: `${courseProgress}%` }} />
+          <div className="course-hud__status">
+            <div className="course-vitals" aria-label="Игровой статус">
+              <span className="course-vitals__hearts" aria-label="Три жизни">♥ ♥ ♥</span>
+              <span className="course-vitals__chip"><span aria-hidden="true">⚡</span> КРЕАТИВ ЗАРЯЖЕН</span>
+            </div>
+            <div className="course-progress" aria-label={`Открыт урок ${activeLessonIndex + 1} из ${lessons.length}`}>
+              <span className="course-progress__icon" aria-hidden="true">✦</span>
+              <div>
+                <span className="course-progress__label">ПУТЬ ПО КУРСУ</span>
+                <div className="course-progress__track" aria-hidden="true">
+                  <span style={{ width: `${courseProgress}%` }} />
+                </div>
+                <span className="course-progress__value">Урок {activeLessonIndex + 1} из {lessons.length}</span>
               </div>
-              <span className="course-progress__value">Урок {activeLessonIndex + 1} из {lessons.length}</span>
             </div>
           </div>
         </header>
@@ -83,7 +91,21 @@ export function CourseLessons({ course, lessons }: CourseLessonsProps) {
             <aside className="lesson-summary lesson-loot" aria-label="Твой лут">
               <div className="lesson-summary__topline"><span aria-hidden="true">✦</span> БОНУС-КОЛЛЕКЦИЯ</div>
               <h2>Твой лут</h2>
-              <p>10 кейсов из урока — забирай ссылки и разбирай игровые механики.</p>
+              <p>Собрали всё полезное из урока в одном инвентаре.</p>
+              <section className="loot-drop" aria-labelledby="loot-drop-title">
+                <div className="loot-drop__icon" aria-hidden="true"><span>30</span></div>
+                <div className="loot-drop__copy">
+                  <span className="loot-drop__rarity">РЕДКИЙ ДРОП · PDF</span>
+                  <h3 id="loot-drop-title">30 креативных идей для контента</h3>
+                  <p>Открывай файл и жми на заголовок идеи — он телепортирует тебя к реальному посту бренда.</p>
+                </div>
+                <a className="loot-drop__download" href={CREATIVE_IDEAS_FILE} download="30 креативных идей для контента.pdf">
+                  <span aria-hidden="true">↓</span>
+                  СКАЧАТЬ ФАЙЛ
+                </a>
+                <span className="loot-drop__meta">7 СТР. · 1,8 МБ</span>
+              </section>
+              <div className="lesson-loot__case-heading"><span aria-hidden="true">↳</span> КЕЙСЫ ИЗ УРОКА</div>
               <ol className="lesson-loot__links">
                 {LESSON_LOOT.map((item, index) => (
                   <li key={item.href}>

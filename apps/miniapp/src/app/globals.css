@@ -194,6 +194,13 @@ html.player-fullscreen-open body {
   text-shadow: 3px 3px 0 #4b1587;
 }
 
+.course-hud__status { display: grid; justify-items: end; gap: 10px; }
+
+.course-vitals { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.course-vitals__hearts { color: #ff4545; font-size: 17px; letter-spacing: 0.05em; text-shadow: 0 0 10px rgb(255 44 68 / 75%), 2px 2px 0 #721632; }
+.course-vitals__chip { padding: 5px 8px; border: 1px solid #7048b8; border-radius: 4px; color: #d9c9f0; font-size: 9px; font-weight: 900; letter-spacing: 0.06em; background: #120a2b; box-shadow: inset 0 0 9px rgb(125 53 196 / 28%); }
+.course-vitals__chip span { color: #ffca40; text-shadow: 0 0 8px #ff9d00; }
+
 .course-progress { display: flex; align-items: center; min-width: min(100%, 270px); gap: 10px; color: #fff; }
 .course-progress__icon { color: #ffcc45; font-size: 28px; text-shadow: 0 0 16px #ff9d00; }
 .course-progress__label,
@@ -349,11 +356,76 @@ html.player-fullscreen-open body {
 .lesson-loot h2 { margin-bottom: 8px; color: #ffcc45; text-shadow: 2px 2px 0 #5e2388; }
 .lesson-loot > p { font-size: 14px; }
 
+.loot-drop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px 12px;
+  margin: 22px 0 18px;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid #f2bd38;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 100% 0, rgb(255 207 74 / 23%), transparent 9rem),
+    linear-gradient(135deg, rgb(90 47 27 / 82%), rgb(35 16 57 / 96%) 58%, rgb(16 8 39 / 98%));
+  box-shadow: inset 0 0 24px rgb(255 185 42 / 10%), 0 0 20px rgb(255 180 35 / 12%);
+}
+
+.loot-drop::after { position: absolute; top: 8px; right: 10px; color: rgb(255 217 102 / 48%); font-size: 12px; content: "✦  ✦"; }
+
+.loot-drop__icon {
+  display: grid;
+  width: 58px;
+  height: 66px;
+  place-items: center;
+  border: 2px solid #ffcc45;
+  border-radius: 7px 7px 11px 7px;
+  color: #160a35;
+  background: linear-gradient(145deg, #fff2aa, #ffbe2e 70%);
+  box-shadow: 4px 4px 0 #713b23, 0 0 15px rgb(255 195 49 / 36%);
+  transform: rotate(-2deg);
+}
+
+.loot-drop__icon span { font-size: 24px; font-weight: 950; letter-spacing: -0.07em; }
+.loot-drop__copy { min-width: 0; }
+.loot-drop__rarity { color: #ffcf52; font-size: 9px; font-weight: 900; letter-spacing: 0.09em; }
+.loot-drop__copy h3 { margin: 3px 0 5px; color: #fff; font-size: 16px; line-height: 1.08; }
+.loot-drop__copy p { margin: 0; color: #dcd0e7; font-size: 11px; line-height: 1.4; }
+
+.loot-drop__download {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  gap: 8px;
+  border: 2px solid #ffe284;
+  border-radius: 6px;
+  color: #1b0b24;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-decoration: none;
+  background: linear-gradient(180deg, #ffe56d, #ffb91f);
+  box-shadow: 0 4px 0 #8c4b17, 0 0 16px rgb(255 190 35 / 28%);
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.loot-drop__download span { font-size: 19px; line-height: 1; }
+.loot-drop__download:hover,
+.loot-drop__download:focus-visible { filter: brightness(1.08); outline: 0; transform: translateY(-1px); box-shadow: 0 5px 0 #8c4b17, 0 0 22px rgb(255 190 35 / 40%); }
+.loot-drop__download:active { transform: translateY(3px); box-shadow: 0 1px 0 #8c4b17; }
+.loot-drop__meta { grid-column: 1 / -1; color: #a990bd; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-align: center; }
+
+.lesson-loot__case-heading { display: flex; align-items: center; gap: 7px; color: #d28cff; font-size: 10px; font-weight: 900; letter-spacing: 0.08em; }
+.lesson-loot__case-heading span { color: #b9ff39; font-size: 16px; }
+
 .lesson-loot__links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin: 22px 0 16px;
+  margin: 10px 0 16px;
   padding: 0;
   list-style: none;
 }
@@ -398,6 +470,8 @@ html.player-fullscreen-open body {
   .game-course-shell { padding: 0; }
   .game-course { min-height: 100dvh; border-width: 0; border-radius: 0; }
   .course-hud { align-items: start; flex-direction: column; gap: 16px; }
+  .course-hud__status { width: 100%; justify-items: start; }
+  .course-vitals { justify-content: flex-start; }
   .course-progress__track { width: min(55vw, 230px); }
   .course-stage { grid-template-columns: 1fr; }
   .lesson-quest-list { order: 2; }

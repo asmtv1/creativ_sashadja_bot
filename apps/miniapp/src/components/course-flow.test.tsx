@@ -53,7 +53,11 @@ describe("Mini App course flow components", () => {
     expect(screen.getByRole("heading", { name: "Course" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Lesson 1" })).toBeTruthy();
     expect(screen.getByLabelText("Твой лут")).toBeTruthy();
-    expect(screen.getAllByRole("link")).toHaveLength(10);
+    expect(screen.getAllByRole("link")).toHaveLength(11);
+    const downloadLink = screen.getByRole("link", { name: /скачать файл/i });
+    expect(downloadLink.getAttribute("href")).toBe("/downloads/30-creative-content-ideas.pdf");
+    expect(downloadLink.getAttribute("download")).toBe("30 креативных идей для контента.pdf");
+    expect(screen.getByText(/телепортирует тебя к реальному посту бренда/i)).toBeTruthy();
     const voisLink = screen.getByRole("link", { name: "Открыть кейс: VOIS" });
     expect(voisLink.getAttribute("href")).toBe(
       "https://t.me/vois/5333"
