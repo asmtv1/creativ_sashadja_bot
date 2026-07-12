@@ -18,9 +18,9 @@ const LESSON_LOOT = [
   { title: "Додо Пицца", href: "https://t.me/dodorus/24" },
   { title: "ВкусВилл", href: "https://t.me/we_are_vkusvill/8405" },
   { title: "Золотое Яблоко", href: "https://t.me/goldapple/25471" },
-  { title: "ЕГЭHub", href: "https://t.me/egehub_ed/2480" },
-  { title: "Colleagtion", href: "https://t.me/colleagtion/3032" },
-  { title: "Instagram", href: "https://www.instagram.com/reel/DZgmWDyuPPF/?igsh=MWE1bnB0Zm5zM211ZQ==" }
+  { title: "ЕГЭХАБ", href: "https://t.me/egehub_ed/2480" },
+  { title: "Коллегция", href: "https://t.me/colleagtion/3032" },
+  { title: "TOP TEN BURGERS", href: "https://www.instagram.com/reel/DZgmWDyuPPF/?igsh=MWE1bnB0Zm5zM211ZQ==" }
 ] as const;
 
 export function CourseLessons({ course, lessons }: CourseLessonsProps) {
