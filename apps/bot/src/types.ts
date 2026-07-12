@@ -16,14 +16,17 @@ export type BotHandlerContext = {
   reply(text: string, options?: unknown): Promise<unknown>;
   replyWithPhoto?(photo: unknown, options?: unknown): Promise<unknown>;
   replyWithVideo?(video: unknown, options?: unknown): Promise<unknown>;
-  replyWithInvoice?(
-    title: string,
-    description: string,
-    payload: string,
-    currency: string,
-    prices: Array<{ label: string; amount: number }>,
-    options?: unknown
-  ): Promise<unknown>;
+  api?: {
+    createInvoiceLink(
+      title: string,
+      description: string,
+      payload: string,
+      providerToken: string,
+      currency: string,
+      prices: Array<{ label: string; amount: number }>,
+      options?: unknown
+    ): Promise<string>;
+  };
 };
 
 export type BotPreCheckoutContext = {

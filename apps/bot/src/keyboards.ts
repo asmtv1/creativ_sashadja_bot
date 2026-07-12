@@ -19,7 +19,15 @@ export function buyCourseKeyboard() {
 export function screenshotPaymentKeyboard() {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: "Оплатить 599 ₽", callback_data: "payment_setup_pending" }]]
+      inline_keyboard: [[{ text: "Оплатить", callback_data: "payment_setup_pending" }]]
+    }
+  };
+}
+
+export function paymentKeyboard(invoiceUrl: string) {
+  return {
+    reply_markup: {
+      inline_keyboard: [[{ text: "Оплатить", url: invoiceUrl }]]
     }
   };
 }

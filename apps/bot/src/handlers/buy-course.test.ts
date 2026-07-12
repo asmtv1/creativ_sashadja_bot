@@ -9,14 +9,7 @@ import { BotHandlerContext } from "../types";
 function createContext(): BotHandlerContext & {
   replies: Array<{ text: string; options?: unknown }>;
   videos: Array<{ video: unknown; options?: unknown }>;
-  invoices: Array<{
-    title: string;
-    description: string;
-    payload: string;
-    currency: string;
-    prices: Array<{ label: string; amount: number }>;
-    options?: unknown;
-  }>;
+  invoiceLinks: Array<{ title: string; payload: string; providerToken: string }>;
   message?: {
     successful_payment?: {
       currency: string;
@@ -27,6 +20,7 @@ function createContext(): BotHandlerContext & {
     };
   };
 } {
+  const invoiceLinks: Array<{ title: string; payload: string; providerToken: string }> = [];
   return {
     from: { id: 42, first_name: "Ivan" },
     replies: [],
@@ -37,33 +31,22 @@ function createContext(): BotHandlerContext & {
     async replyWithVideo(video: unknown, options?: unknown) {
       this.videos.push({ video, options });
     },
-    invoices: [],
-    async replyWithInvoice(
-      title: string,
-      description: string,
-      payload: string,
-      currency: string,
-      prices: Array<{ label: string; amount: number }>,
-      options?: unknown
-    ) {
-      this.invoices.push({ title, description, payload, currency, prices, options });
+    invoiceLinks,
+    api: {
+      async createInvoiceLink(title, _description, payload, providerToken) {
+        invoiceLinks.push({ title, payload, providerToken });
+        return "https://t.me/$invoice";
+      }
     }
   } as BotHandlerContext & {
     replies: Array<{ text: string; options?: unknown }>;
     videos: Array<{ video: unknown; options?: unknown }>;
-    invoices: Array<{
-      title: string;
-      description: string;
-      payload: string;
-      currency: string;
-      prices: Array<{ label: string; amount: number }>;
-      options?: unknown;
-    }>;
+    invoiceLinks: Array<{ title: string; payload: string; providerToken: string }>;
   };
 }
 
 describe("buy course handlers", () => {
-  it("sends a Telegram invoice with the YooKassa provider token", async () => {
+  it("attaches a single payment button to the lesson post", async () => {
     const ctx = createContext();
     await handleBuyCourse(ctx, {
       paymentProviderToken: "yookassa-provider-token",
@@ -93,12 +76,15 @@ describe("buy course handlers", () => {
     expect(ctx.videos.at(-1)?.options).toMatchObject({
       caption: expect.stringContaining("Цена: 599 руб")
     });
-    expect(ctx.invoices.at(-1)).toMatchObject({
+    expect(ctx.invoiceLinks.at(-1)).toMatchObject({
       title: "Креативный контент | обучение",
       payload: "order_1",
-      currency: "RUB",
-      prices: [{ label: "Геймификация в контенте", amount: 59900 }],
-      options: { provider_token: "yookassa-provider-token" }
+      providerToken: "yookassa-provider-token"
+    });
+    expect(ctx.videos.at(-1)?.options).toMatchObject({
+      reply_markup: {
+        inline_keyboard: [[{ text: "Оплатить", url: "https://t.me/$invoice" }]]
+      }
     });
   });
 
@@ -118,8 +104,8 @@ describe("buy course handlers", () => {
       parse_mode: "HTML",
       reply_markup: expect.anything()
     });
-    expect(JSON.stringify(ctx.videos.at(-1)?.options)).toContain("Оплатить 599 ₽");
-    expect(ctx.invoices).toHaveLength(0);
+    expect(JSON.stringify(ctx.videos.at(-1)?.options)).toContain("Оплатить");
+    expect(ctx.invoiceLinks).toHaveLength(0);
   });
 
   it("accepts a matching Telegram pre-checkout query", async () => {

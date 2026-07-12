@@ -1,5 +1,5 @@
 import { InputFile } from "grammy";
-import { openCourseKeyboard, screenshotPaymentKeyboard } from "../keyboards";
+import { openCourseKeyboard, paymentKeyboard, screenshotPaymentKeyboard } from "../keyboards";
 import {
   BotApi,
   BotHandlerContext,
@@ -22,8 +22,8 @@ export async function handleBuyCourse(
     await sendLessonPaymentPost(ctx, screenshotPaymentKeyboard());
     return;
   }
-  if (!ctx.replyWithInvoice) {
-    throw new Error("Telegram invoice API is missing from bot context");
+  if (!ctx.api?.createInvoiceLink) {
+    throw new Error("Telegram createInvoiceLink API is missing from bot context");
   }
 
   const order = await deps.api.createOrder(telegramId).catch((error: unknown) => {
@@ -41,15 +41,29 @@ export async function handleBuyCourse(
     return;
   }
 
-  await sendLessonPaymentPost(ctx);
-  await ctx.replyWithInvoice(
-    order.title,
-    order.description,
-    order.invoicePayload,
-    order.currency,
-    [{ label: LESSON_TITLE, amount: order.amountKopecks }],
-    { provider_token: deps.paymentProviderToken }
-  );
+  const invoiceUrl = await ctx.api
+    .createInvoiceLink(
+      order.title,
+      order.description,
+      order.invoicePayload,
+      deps.paymentProviderToken,
+      order.currency,
+      [{ label: LESSON_TITLE, amount: order.amountKopecks }]
+    )
+    .catch((error: unknown) => {
+      console.error(
+        "Telegram createInvoiceLink failed",
+        error instanceof Error ? error.message : error
+      );
+      return null;
+    });
+
+  if (!invoiceUrl) {
+    await ctx.reply("Не удалось подготовить оплату. Попробуйте ещё раз через минуту.");
+    return;
+  }
+
+  await sendLessonPaymentPost(ctx, paymentKeyboard(invoiceUrl));
 }
 
 async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) {
