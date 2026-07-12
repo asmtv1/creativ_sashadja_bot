@@ -156,6 +156,7 @@ a {
 .locked-checkpoint button:disabled { filter: saturate(0.65); transform: none; }
 .locked-checkpoint > p { display: flex; align-items: flex-start; justify-content: center; gap: 7px; margin: 17px auto 0; color: #bdaecb; font-size: 10px; line-height: 1.35; text-align: center; }
 .locked-checkpoint > p span { flex: 0 0 auto; color: #b9ff39; font-size: 13px; }
+.locked-checkpoint > p.locked-checkpoint__status { color: #ffd86b; }
 
 @media (max-width: 480px) {
   .locked-shell { padding: 0; place-items: stretch; }

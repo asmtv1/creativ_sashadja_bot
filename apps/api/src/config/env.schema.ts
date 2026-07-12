@@ -12,6 +12,7 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   TELEGRAM_BOT_USERNAME: optionalNonEmptyString(),
+  TELEGRAM_PAYMENT_PROVIDER_TOKEN: optionalNonEmptyString(),
   TELEGRAM_WEBHOOK_SECRET: optionalNonEmptyString(),
   INTERNAL_API_TOKEN: z.string().min(1),
   ADMIN_BASIC_USER: z.string().min(1).default("admin"),

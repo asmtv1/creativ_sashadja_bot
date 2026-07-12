@@ -125,17 +125,28 @@ export class OrdersService {
       return { alreadyPaid: true };
     }
 
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        courseId: course.id,
-        provider: "YOOKASSA",
-        amountKopecks: course.priceKopecks,
-        currency: course.currency,
-        status: "PENDING",
-        idempotenceKey: randomUUID()
-      }
-    });
+    const order =
+      (await this.prisma.order.findFirst({
+        where: {
+          userId,
+          courseId: course.id,
+          status: "PENDING",
+          amountKopecks: course.priceKopecks,
+          currency: course.currency
+        },
+        orderBy: { createdAt: "desc" }
+      })) ??
+      (await this.prisma.order.create({
+        data: {
+          userId,
+          courseId: course.id,
+          provider: "YOOKASSA",
+          amountKopecks: course.priceKopecks,
+          currency: course.currency,
+          status: "PENDING",
+          idempotenceKey: randomUUID()
+        }
+      }));
 
     return {
       orderId: order.id,

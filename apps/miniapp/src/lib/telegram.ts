@@ -18,8 +18,21 @@ export function openExternalUrl(url: string) {
   window.location.href = url;
 }
 
-export function closeTelegramWebApp() {
-  window.Telegram?.WebApp.close();
+export type TelegramInvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
+
+export function openTelegramInvoice(url: string): Promise<TelegramInvoiceStatus> {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.openInvoice) {
+    return Promise.reject(new Error("Оплата доступна только внутри Telegram"));
+  }
+
+  return new Promise((resolve, reject) => {
+    try {
+      webApp.openInvoice?.(url, resolve);
+    } catch {
+      reject(new Error("Не удалось открыть оплату в Telegram"));
+    }
+  });
 }
 
 export function requestTelegramFullscreen() {

@@ -20,12 +20,14 @@ describe("validateEnv", () => {
       YOOKASSA_SECRET_KEY: "",
       YOOKASSA_WEBHOOK_SECRET: "",
       TELEGRAM_BOT_USERNAME: "",
+      TELEGRAM_PAYMENT_PROVIDER_TOKEN: "",
       TELEGRAM_WEBHOOK_SECRET: "",
       KINESCOPE_API_TOKEN: "",
       KINESCOPE_PRIVACY_MODE: ""
     });
 
     expect(env.TELEGRAM_BOT_USERNAME).toBeUndefined();
+    expect(env.TELEGRAM_PAYMENT_PROVIDER_TOKEN).toBeUndefined();
     expect(env.TELEGRAM_WEBHOOK_SECRET).toBeUndefined();
     expect(env.YOOKASSA_SHOP_ID).toBeUndefined();
     expect(env.YOOKASSA_SECRET_KEY).toBeUndefined();

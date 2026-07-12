@@ -17,7 +17,7 @@ describe("Mini App course flow components", () => {
     expect(screen.getByText("Откройте курс из Telegram")).toBeTruthy();
   });
 
-  it("shows the locked state and calls the bot return action for users without access", () => {
+  it("shows the locked state and calls the payment action for users without access", () => {
     const onBuy = vi.fn();
     render(
       <CourseLocked
@@ -27,7 +27,7 @@ describe("Mini App course flow components", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /вернуться в бот/i }));
+    fireEvent.click(screen.getByRole("button", { name: /перейти к оплате/i }));
 
     expect(onBuy).toHaveBeenCalledOnce();
   });

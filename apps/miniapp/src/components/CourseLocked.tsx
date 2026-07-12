@@ -9,11 +9,15 @@ type LockedCourse = {
 export function CourseLocked({
   course,
   onBuy,
-  isBuying
+  isBuying,
+  actionLabel,
+  paymentMessage
 }: {
   course: LockedCourse;
   onBuy: () => void;
   isBuying: boolean;
+  actionLabel?: string;
+  paymentMessage?: string;
 }) {
   return (
     <main className="locked-shell">
@@ -44,15 +48,18 @@ export function CourseLocked({
           </div>
           <button
             type="button"
-            aria-label="Вернуться в бот для оплаты"
+            aria-label="Перейти к оплате"
             onClick={onBuy}
             disabled={isBuying}
           >
             <span aria-hidden="true">⚔</span>
-            {isBuying ? "ВОЗВРАЩАЕМСЯ В БОТ…" : "ПЕРЕЙТИ К ОПЛАТЕ"}
+            {actionLabel ?? (isBuying ? "ГОТОВИМ ОПЛАТУ…" : "ПЕРЕЙТИ К ОПЛАТЕ")}
             <span aria-hidden="true">→</span>
           </button>
-          <p><span aria-hidden="true">ⓘ</span> Оплата откроется в Telegram. После неё возвращайся сюда — доступ появится автоматически.</p>
+          <p className={paymentMessage ? "locked-checkpoint__status" : undefined}>
+            <span aria-hidden="true">ⓘ</span>
+            {paymentMessage ?? "Оплата откроется прямо здесь. После неё доступ появится автоматически."}
+          </p>
         </div>
       </section>
     </main>

@@ -20,5 +20,16 @@ export const CreateOrderResponseSchema = z.union([
   })
 ]);
 
+export const CreateInvoiceResponseSchema = z.union([
+  z.object({
+    orderId: z.string().min(1),
+    invoiceUrl: z.string().url()
+  }),
+  z.object({
+    alreadyPaid: z.literal(true)
+  })
+]);
+
 export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
 export type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>;
+export type CreateInvoiceResponse = z.infer<typeof CreateInvoiceResponseSchema>;

@@ -1,5 +1,7 @@
 import {
   CourseAccessResponse,
+  CreateInvoiceResponse,
+  CreateInvoiceResponseSchema,
   TelegramAuthResponse,
   TelegramAuthResponseSchema
 } from "@course/shared";
@@ -19,6 +21,14 @@ export async function authenticateTelegram(initData: string): Promise<TelegramAu
 
 export async function getMyCourse(): Promise<CourseAccessResponse> {
   return requestWithSession("/api/me/course");
+}
+
+export async function createCourseInvoice(courseSlug: string): Promise<CreateInvoiceResponse> {
+  const payload = await requestWithSession("/api/orders/invoice", {
+    method: "POST",
+    body: { courseSlug }
+  });
+  return CreateInvoiceResponseSchema.parse(payload);
 }
 
 async function requestWithSession(path: string, init: { method?: string; body?: unknown } = {}) {

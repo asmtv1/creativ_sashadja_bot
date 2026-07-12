@@ -30,6 +30,7 @@ function createPrisma() {
     },
     order: {
       create: vi.fn(async () => order),
+      findFirst: vi.fn(async (): Promise<any> => null),
       findUnique: vi.fn(async () => order),
       update: vi.fn(async () => ({ ...order, status: "PAID" }))
     },
@@ -66,6 +67,29 @@ describe("OrdersService Telegram invoice flow", () => {
       amountKopecks: 59900,
       currency: "RUB"
     });
+  });
+
+  it("reuses a matching pending order when checkout is prepared again", async () => {
+    const prisma = createPrisma();
+    prisma.order.findFirst.mockResolvedValueOnce({
+      id: "order_existing",
+      userId: "user_1",
+      courseId: "course_1",
+      amountKopecks: 59900,
+      currency: "RUB",
+      status: "PENDING",
+      providerPaymentId: null,
+      user: { telegramId: "42" }
+    });
+    const service = new OrdersService(
+      prisma as any,
+      { hasAccess: vi.fn(async () => false) } as any
+    );
+
+    const result = await service.createOrderForTelegramUser("42", "basic-course");
+
+    expect(prisma.order.create).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ orderId: "order_existing", invoicePayload: "order_existing" });
   });
 
   it("marks a matching Telegram SuccessfulPayment as paid and grants access", async () => {

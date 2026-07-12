@@ -3,6 +3,7 @@ import {
   BotCompleteTelegramPaymentRequestSchema,
   BotValidateTelegramInvoiceRequestSchema,
   BotUserUpsertRequestSchema,
+  CreateInvoiceResponseSchema,
   CreateOrderResponseSchema,
   CreateOrderRequestSchema,
   TelegramAuthRequestSchema
@@ -44,6 +45,13 @@ describe("shared API contracts", () => {
         currency: "RUB"
       })
     ).toMatchObject({ invoicePayload: "order_1", amountKopecks: 59900 });
+
+    expect(
+      CreateInvoiceResponseSchema.parse({
+        orderId: "order_1",
+        invoiceUrl: "https://t.me/$invoice"
+      })
+    ).toMatchObject({ orderId: "order_1" });
 
     expect(
       BotValidateTelegramInvoiceRequestSchema.parse({
