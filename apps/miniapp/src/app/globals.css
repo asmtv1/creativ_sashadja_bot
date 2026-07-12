@@ -70,6 +70,101 @@ a {
   color: var(--muted);
 }
 
+.locked-shell {
+  display: grid;
+  min-height: 100dvh;
+  padding: clamp(12px, 4vw, 34px);
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 10%, rgb(146 55 245 / 36%), transparent 22rem),
+    radial-gradient(circle at 92% 86%, rgb(76 31 190 / 48%), transparent 28rem),
+    #080517;
+}
+
+.locked-card {
+  position: relative;
+  width: min(680px, 100%);
+  padding: clamp(18px, 5vw, 42px);
+  overflow: hidden;
+  border: 2px solid #963bea;
+  border-radius: 18px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgb(122 42 211 / 22%), transparent 32%),
+    linear-gradient(320deg, rgb(31 13 76 / 92%), rgb(8 6 24 / 98%));
+  box-shadow: 0 0 0 5px rgb(86 31 151 / 27%), 0 28px 90px rgb(0 0 0 / 58%);
+}
+
+.locked-card::before,
+.locked-card::after { position: absolute; color: rgb(200 100 255 / 24%); font-size: 80px; line-height: 1; content: "✦"; pointer-events: none; }
+.locked-card::before { top: -18px; left: -12px; }
+.locked-card::after { right: -10px; bottom: -18px; }
+
+.locked-card__hud,
+.locked-card__hero,
+.locked-rewards,
+.locked-checkpoint { position: relative; z-index: 1; }
+
+.locked-card__hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: clamp(24px, 6vw, 42px); }
+.locked-card__hearts { color: #ff4545; font-size: 18px; letter-spacing: 0.08em; text-shadow: 0 0 11px rgb(255 44 68 / 78%), 2px 2px 0 #721632; }
+.locked-card__energy { padding: 6px 9px; border: 1px solid #7048b8; border-radius: 4px; color: #d9c9f0; font-size: 9px; font-weight: 900; letter-spacing: 0.07em; background: #120a2b; box-shadow: inset 0 0 9px rgb(125 53 196 / 28%); }
+.locked-card__energy span { color: #ffca40; text-shadow: 0 0 8px #ff9d00; }
+
+.locked-card__hero { text-align: center; }
+.locked-card__crown { display: block; height: 37px; color: #ffca40; font-size: 38px; line-height: 1; text-shadow: 0 0 18px rgb(255 183 27 / 60%), 3px 3px 0 #6c2f32; }
+.locked-card__hero .pixel-kicker { margin-top: 12px; color: #d18aff; }
+.locked-card__hero h1 { max-width: 570px; margin: 7px auto 14px; font-size: clamp(34px, 7vw, 58px); line-height: 0.98; letter-spacing: -0.035em; text-shadow: 4px 4px 0 #4b1587; }
+.locked-card__hero > p { max-width: 530px; margin: 0 auto; color: #d9cfe4; font-size: clamp(14px, 2.8vw, 18px); line-height: 1.45; }
+
+.locked-rewards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: clamp(24px, 6vw, 38px) 0 18px; }
+.locked-rewards div { display: grid; min-width: 0; min-height: 98px; padding: 12px 9px; place-items: center; border: 1px solid rgb(195 103 255 / 48%); border-radius: 8px; text-align: center; background: rgb(50 20 88 / 62%); box-shadow: inset 0 0 18px rgb(140 56 220 / 11%); }
+.locked-rewards div > span { color: #ffcc45; font-size: 22px; line-height: 1; text-shadow: 0 0 12px rgb(255 190 35 / 45%); }
+.locked-rewards strong { margin-top: 7px; color: #fff; font-size: 12px; }
+.locked-rewards small { margin-top: 3px; color: #bca9d0; font-size: 9px; line-height: 1.25; }
+
+.locked-checkpoint { padding: clamp(16px, 4vw, 24px); border: 1px solid #d096ff; border-radius: 11px; background: linear-gradient(145deg, rgb(82 32 126 / 74%), rgb(20 9 48 / 94%)); box-shadow: inset 0 0 25px rgb(178 72 255 / 13%); }
+.locked-checkpoint__price { display: grid; justify-items: center; text-align: center; }
+.locked-checkpoint__price > span { color: #d58fff; font-size: 9px; font-weight: 900; letter-spacing: 0.1em; }
+.locked-checkpoint__price strong { margin: 3px 0 2px; color: #ffcf45; font-size: clamp(32px, 7vw, 46px); line-height: 1; text-shadow: 3px 3px 0 #6a2b5e; }
+.locked-checkpoint__price small { color: #b7a2c9; font-size: 8px; font-weight: 800; letter-spacing: 0.07em; }
+
+.locked-checkpoint button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 17px;
+  padding: 0 14px;
+  border: 2px solid #ffe284;
+  border-radius: 7px;
+  color: #1c0b24;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+  background: linear-gradient(180deg, #ffe66d, #ffb91f);
+  box-shadow: 0 5px 0 #8c4b17, 0 0 20px rgb(255 190 35 / 27%);
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.locked-checkpoint button span { font-size: 19px; line-height: 1; }
+.locked-checkpoint button span:last-child { color: #612a1d; font-size: 22px; }
+.locked-checkpoint button:hover,
+.locked-checkpoint button:focus-visible { filter: brightness(1.08); outline: 0; transform: translateY(-1px); box-shadow: 0 6px 0 #8c4b17, 0 0 25px rgb(255 190 35 / 38%); }
+.locked-checkpoint button:active { transform: translateY(3px); box-shadow: 0 2px 0 #8c4b17; }
+.locked-checkpoint button:disabled { filter: saturate(0.65); transform: none; }
+.locked-checkpoint > p { display: flex; align-items: flex-start; justify-content: center; gap: 7px; margin: 17px auto 0; color: #bdaecb; font-size: 10px; line-height: 1.35; text-align: center; }
+.locked-checkpoint > p span { flex: 0 0 auto; color: #b9ff39; font-size: 13px; }
+
+@media (max-width: 480px) {
+  .locked-shell { padding: 0; place-items: stretch; }
+  .locked-card { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .locked-rewards { gap: 6px; }
+  .locked-rewards div { min-height: 92px; padding-inline: 5px; }
+  .locked-checkpoint { padding: 15px; }
+}
+
 .lesson-page h1 {
   margin: 0;
   font-size: clamp(28px, 5vw, 48px);
