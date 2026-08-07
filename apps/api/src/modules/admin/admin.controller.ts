@@ -42,6 +42,16 @@ export class AdminController {
     });
   }
 
+  @Get("users/by-username/:username")
+  async userByUsername(@Param("username") username: string) {
+    const normalizedUsername = username.replace(/^@/, "").trim();
+    const user = await this.prisma.telegramUser.findFirst({
+      where: { username: { equals: normalizedUsername, mode: "insensitive" } },
+      select: { telegramId: true }
+    });
+    return user ?? { telegramId: null };
+  }
+
   @Post("access/grant")
   async grant(@Req() request: any, @Body() body: unknown) {
     const input = AdminAccessMutationRequestSchema.parse(body);
