@@ -61,7 +61,7 @@ const receipts = [
 ];
 
 describe("AdminPage", () => {
-  it("loads both products and separates them into tabs", async () => {
+  it("loads product dashboards and opens NPD receipts from a separate menu tab", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -101,7 +101,9 @@ describe("AdminPage", () => {
       ).toBeTruthy(),
     );
     expect(screen.getAllByText(/390.*₽/).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Чеки НПД" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Чеки НПД" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Чеки НПД" }));
+    expect(await screen.findByRole("heading", { name: "Чеки НПД" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Открыть чек" }).getAttribute("href")).toBe(receipts[0]!.receiptUrl);
   });
 });

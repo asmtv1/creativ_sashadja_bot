@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 type Credentials = { user: string; password: string };
 type ProductKey = "course" | "channel";
+type AdminTab = ProductKey | "receipts";
 type DashboardUser = {
   telegramId: string;
   username: string | null;
@@ -55,6 +56,11 @@ const PRODUCT_META: Record<
     empty: "Пока никто не открывал бота.",
   },
 };
+const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
+  { key: "course", label: PRODUCT_META.course.tab },
+  { key: "channel", label: PRODUCT_META.channel.tab },
+  { key: "receipts", label: "Чеки НПД" },
+];
 
 export default function AdminPage() {
   const [credentials, setCredentials] = useState<Credentials>({
@@ -62,7 +68,7 @@ export default function AdminPage() {
     password: "",
   });
   const [isAuthorized, setAuthorized] = useState(false);
-  const [activeTab, setActiveTab] = useState<ProductKey>("course");
+  const [activeTab, setActiveTab] = useState<AdminTab>("course");
   const [dashboards, setDashboards] = useState<
     Partial<Record<ProductKey, Dashboard>>
   >({});
@@ -73,7 +79,8 @@ export default function AdminPage() {
     kind: "success" | "error";
     text: string;
   } | null>(null);
-  const dashboard = dashboards[activeTab];
+  const isReceiptsTab = activeTab === "receipts";
+  const dashboard = isReceiptsTab ? undefined : dashboards[activeTab];
   const visibleUsers = dashboard?.users ?? [];
 
   async function loadDashboard(
@@ -97,7 +104,7 @@ export default function AdminPage() {
     setNotice(null);
     setLoading(true);
     try {
-      await Promise.all([loadDashboard("course"), loadDashboard("channel"), loadReceipts()]);
+      await Promise.all([loadDashboard("course"), loadDashboard("channel")]);
       setAuthorized(true);
     } catch {
       setNotice({
@@ -109,9 +116,22 @@ export default function AdminPage() {
     }
   }
 
-  async function changeTab(tab: ProductKey) {
+  async function changeTab(tab: AdminTab) {
     setActiveTab(tab);
     setNotice(null);
+    if (tab === "receipts") {
+      if (!receipts.length) {
+        setLoading(true);
+        try {
+          await loadReceipts();
+        } catch {
+          setNotice({ kind: "error", text: "Не удалось загрузить журнал чеков." });
+        } finally {
+          setLoading(false);
+        }
+      }
+      return;
+    }
     if (!dashboards[tab]) {
       setLoading(true);
       try {
@@ -141,6 +161,7 @@ export default function AdminPage() {
   }
 
   async function mutateAccess(action: "grant" | "revoke", target: string) {
+    if (activeTab === "receipts") return;
     if (action === "revoke" && !window.confirm("Точно отозвать доступ?"))
       return;
     setNotice(null);
@@ -256,19 +277,25 @@ export default function AdminPage() {
             Выйти
           </button>
         </header>
-        <nav className="admin-tabs" aria-label="Продукты">
-          {(Object.keys(PRODUCT_META) as ProductKey[]).map((tab) => (
+        <nav className="admin-tabs" aria-label="Разделы админки">
+          {ADMIN_TABS.map((tab) => (
             <button
-              key={tab}
+              key={tab.key}
               type="button"
-              className={activeTab === tab ? "active" : ""}
-              onClick={() => void changeTab(tab)}
+              className={activeTab === tab.key ? "active" : ""}
+              onClick={() => void changeTab(tab.key)}
             >
-              {PRODUCT_META[tab].tab}
+              {tab.label}
             </button>
           ))}
         </nav>
-        {dashboard ? (
+        {isReceiptsTab ? (
+          <ReceiptSection
+            receipts={receipts}
+            isLoading={isLoading}
+            onRefresh={loadReceipts}
+          />
+        ) : dashboard ? (
           <>
             <section className="admin-heading">
               <div>
@@ -382,29 +409,43 @@ export default function AdminPage() {
                 <p className="admin-empty">{PRODUCT_META[activeTab].empty}</p>
               )}
             </section>
-            <section className="admin-table-section" aria-labelledby="admin-receipts-title">
-              <div className="admin-table-section__heading">
-                <div>
-                  <h3 id="admin-receipts-title">Чеки НПД</h3>
-                  <p>Последние {receipts.length} записей. Ссылка появляется только после подтверждения НПД.</p>
-                </div>
-                <button className="admin-refresh" type="button" onClick={() => void loadReceipts()} disabled={isLoading}>Обновить чеки</button>
-              </div>
-              {receipts.length ? (
-                <div className="admin-table-wrap">
-                  <table className="admin-table">
-                    <thead><tr><th>Покупатель</th><th>Товар</th><th>Оплата</th><th>Статус чека</th><th>Чек</th></tr></thead>
-                    <tbody>{receipts.map((receipt) => <ReceiptRow key={receipt.id} receipt={receipt} />)}</tbody>
-                  </table>
-                </div>
-              ) : <p className="admin-empty">Чеков пока нет.</p>}
-            </section>
           </>
         ) : (
           <div className="admin-loading">Загружаем данные…</div>
         )}
       </section>
     </main>
+  );
+}
+function ReceiptSection({
+  receipts,
+  isLoading,
+  onRefresh,
+}: {
+  receipts: Receipt[];
+  isLoading: boolean;
+  onRefresh: () => Promise<void>;
+}) {
+  return (
+    <section className="admin-table-section" aria-labelledby="admin-receipts-title">
+      <div className="admin-table-section__heading">
+        <div>
+          <h2 id="admin-receipts-title">Чеки НПД</h2>
+          <p>Последние {receipts.length} записей. Ссылка появляется только после подтверждения НПД.</p>
+        </div>
+        <button className="admin-refresh" type="button" onClick={() => void onRefresh()} disabled={isLoading}>
+          Обновить чеки
+        </button>
+      </div>
+      {receipts.length ? (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>Покупатель</th><th>Товар</th><th>Оплата</th><th>Статус чека</th><th>Чек</th></tr></thead>
+            <tbody>{receipts.map((receipt) => <ReceiptRow key={receipt.id} receipt={receipt} />)}</tbody>
+          </table>
+        </div>
+      ) : <p className="admin-empty">Чеков пока нет.</p>}
+    </section>
   );
 }
 function ReceiptRow({ receipt }: { receipt: Receipt }) {
