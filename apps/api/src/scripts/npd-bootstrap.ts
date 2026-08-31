@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr } from "node:process";
 import { PrismaClient } from "@course/db";
-import { encryptRefreshToken, NpdGateway } from "@course/npd";
+import { encryptRefreshToken, NpdGateway, NpdGatewayError } from "@course/npd";
 
 const prisma = new PrismaClient();
 const prompt = createInterface({ input: stdin, output: stdout });
@@ -24,4 +24,10 @@ async function main() {
     stdout.write("NPD connection saved. Fiscalization is still disabled.\n");
   } finally { prompt.close(); await prisma.$disconnect(); }
 }
-void main().catch(() => { stderr.write("NPD bootstrap failed.\n"); process.exitCode = 1; });
+void main().catch((error: unknown) => {
+  const details = error instanceof NpdGatewayError
+    ? `${error.code}${error.status ? ` (HTTP ${error.status})` : ""}`
+    : "local configuration or database error";
+  stderr.write(`NPD bootstrap failed: ${details}.\n`);
+  process.exitCode = 1;
+});
