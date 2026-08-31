@@ -105,4 +105,3 @@ describe("AdminPage", () => {
     expect(screen.getByRole("link", { name: "Открыть чек" }).getAttribute("href")).toBe(receipts[0]!.receiptUrl);
   });
 });
-import React from "react";

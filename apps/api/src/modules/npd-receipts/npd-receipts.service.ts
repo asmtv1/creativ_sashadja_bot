@@ -8,8 +8,6 @@ const LEASE_MS = 90_000;
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
 const RECONCILIATION_WINDOW_MS = 5 * 60_000;
 
-type Db = PrismaService & Record<string, any>;
-
 @Injectable()
 export class NpdReceiptsService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
