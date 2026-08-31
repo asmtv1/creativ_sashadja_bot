@@ -34,7 +34,7 @@ export async function handleBuyCourse(
     return;
   }
 
-  await sendLessonPaymentPost(ctx, paymentKeyboard(checkout.paymentUrl));
+  await sendLessonPaymentPost(ctx, paymentKeyboard(checkout.paymentUrl, deps.miniAppUrl));
 }
 
 async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) {

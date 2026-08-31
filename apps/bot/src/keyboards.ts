@@ -25,7 +25,7 @@ export function channelTermsKeyboard(publicBaseUrl: string) {
           { text: "Публичная оферта", url: new URL("/legal/offer", publicBaseUrl).href },
           { text: "Конфиденциальность", url: new URL("/legal/privacy", publicBaseUrl).href }
         ],
-        [{ text: "Принимаю условия и перейти к оплате", callback_data: "channel_checkout" }]
+        [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }]
       ]
     }
   };
@@ -42,10 +42,16 @@ export function subscriptionKeyboard(autoRenew: boolean) {
   };
 }
 
-export function paymentKeyboard(paymentUrl: string) {
+export function paymentKeyboard(paymentUrl: string, publicBaseUrl: string) {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: "Оплатить через СБП", url: paymentUrl }]]
+      inline_keyboard: [
+        [
+          { text: "Публичная оферта", url: new URL("/legal/offer", publicBaseUrl).href },
+          { text: "Конфиденциальность", url: new URL("/legal/privacy", publicBaseUrl).href }
+        ],
+        [{ text: "Принять условия и перейти к оплате", url: paymentUrl }]
+      ]
     }
   };
 }

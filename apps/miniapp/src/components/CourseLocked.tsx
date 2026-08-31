@@ -49,12 +49,12 @@ export function CourseLocked({
           </div>
           <button
             type="button"
-            aria-label="Перейти к оплате"
+            aria-label="Принять условия и перейти к оплате"
             onClick={onBuy}
             disabled={isBuying}
           >
             <span aria-hidden="true">⚔</span>
-            {actionLabel ?? (isBuying ? "ГОТОВИМ ОПЛАТУ…" : "ПЕРЕЙТИ К ОПЛАТЕ")}
+            {actionLabel ?? (isBuying ? "ГОТОВИМ ОПЛАТУ…" : "ПРИНЯТЬ УСЛОВИЯ И ПЕРЕЙТИ К ОПЛАТЕ")}
             <span aria-hidden="true">→</span>
           </button>
           <p className={paymentMessage ? "locked-checkpoint__status" : undefined}>

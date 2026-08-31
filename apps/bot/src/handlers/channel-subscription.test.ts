@@ -37,7 +37,7 @@ describe("channel subscription controls", () => {
             { text: "Публичная оферта", url: "https://course.example.com/legal/offer" },
             { text: "Конфиденциальность", url: "https://course.example.com/legal/privacy" }
           ],
-          [{ text: "Принимаю условия и перейти к оплате", callback_data: "channel_checkout" }]
+          [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }]
         ]
       }
     });

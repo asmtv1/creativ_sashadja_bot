@@ -23,7 +23,7 @@ function createContext(): BotHandlerContext & {
 }
 
 describe("buy course handlers", () => {
-  it("attaches a direct SBP YooKassa payment button to the lesson post", async () => {
+  it("shows legal documents and acceptance before direct SBP course payment", async () => {
     const ctx = createContext();
     const createCourseCheckout = vi.fn(async () => ({
       orderId: "order_1",
@@ -46,7 +46,13 @@ describe("buy course handlers", () => {
       height: 800,
       supports_streaming: true,
       reply_markup: {
-        inline_keyboard: [[{ text: "Оплатить через СБП", url: "https://yookassa.example/confirm" }]]
+        inline_keyboard: [
+          [
+            { text: "Публичная оферта", url: "https://course.example.com/legal/offer" },
+            { text: "Конфиденциальность", url: "https://course.example.com/legal/privacy" }
+          ],
+          [{ text: "Принять условия и перейти к оплате", url: "https://yookassa.example/confirm" }]
+        ]
       }
     });
   });
