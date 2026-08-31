@@ -21,11 +21,11 @@ export function channelTermsKeyboard(publicBaseUrl: string) {
   return {
     reply_markup: {
       inline_keyboard: [
+        [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }],
         [
           { text: "Публичная оферта", url: new URL("/legal/offer", publicBaseUrl).href },
           { text: "Конфиденциальность", url: new URL("/legal/privacy", publicBaseUrl).href }
-        ],
-        [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }]
+        ]
       ]
     }
   };
@@ -46,11 +46,11 @@ export function paymentKeyboard(paymentUrl: string, publicBaseUrl: string) {
   return {
     reply_markup: {
       inline_keyboard: [
+        [{ text: "Принять условия и перейти к оплате", url: paymentUrl }],
         [
           { text: "Публичная оферта", url: new URL("/legal/offer", publicBaseUrl).href },
           { text: "Конфиденциальность", url: new URL("/legal/privacy", publicBaseUrl).href }
-        ],
-        [{ text: "Принять условия и перейти к оплате", url: paymentUrl }]
+        ]
       ]
     }
   };

@@ -33,11 +33,11 @@ describe("channel subscription controls", () => {
     expect(ctx.replies.at(-1)?.options).toMatchObject({
       reply_markup: {
         inline_keyboard: [
+          [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }],
           [
             { text: "Публичная оферта", url: "https://course.example.com/legal/offer" },
             { text: "Конфиденциальность", url: "https://course.example.com/legal/privacy" }
-          ],
-          [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }]
+          ]
         ]
       }
     });

@@ -47,11 +47,11 @@ describe("buy course handlers", () => {
       supports_streaming: true,
       reply_markup: {
         inline_keyboard: [
+          [{ text: "Принять условия и перейти к оплате", url: "https://yookassa.example/confirm" }],
           [
             { text: "Публичная оферта", url: "https://course.example.com/legal/offer" },
             { text: "Конфиденциальность", url: "https://course.example.com/legal/privacy" }
-          ],
-          [{ text: "Принять условия и перейти к оплате", url: "https://yookassa.example/confirm" }]
+          ]
         ]
       }
     });
