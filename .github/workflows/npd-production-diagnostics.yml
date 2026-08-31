@@ -1,0 +1,49 @@
+name: NPD production diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Read-only NPD diagnostics
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST" && test -n "$DEPLOY_USER" && test -n "$DEPLOY_PATH" && test -n "$DEPLOY_SSH_KEY"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Inspect production NPD prerequisites
+        run: |
+          set -euo pipefail
+          port="${DEPLOY_PORT:-22}"
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          remote_env="DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH")"
+          ssh -i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=15 -o ServerAliveCountMax=20 "$remote" "$remote_env bash -se" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH/current"
+          docker compose -p tgbot ps
+          echo "--- API logs (last 200 lines) ---"
+          docker compose -p tgbot logs --tail=200 api
+          echo "--- NPD configuration presence ---"
+          docker compose -p tgbot exec -T api node -e 'console.log(`NPD_TOKEN_ENCRYPTION_KEY=${process.env.NPD_TOKEN_ENCRYPTION_KEY ? "present" : "missing"}`); console.log(`NPD_PROCESSING_ENABLED=${process.env.NPD_PROCESSING_ENABLED}`)'
+          echo "--- NPD connection state ---"
+          docker compose -p tgbot exec -T api node --input-type=module -e 'import { PrismaClient } from "@course/db"; const prisma = new PrismaClient(); const connection = await prisma.npdConnection.findUnique({ where: { id: "default" }, select: { status: true, fiscalizationStartedAt: true, lastAuthorizedAt: true, lastErrorCode: true } }); console.log(JSON.stringify(connection ?? { configured: false })); await prisma.$disconnect()'
+          echo "--- NPD network reachability ---"
+          docker compose -p tgbot exec -T api node -e 'fetch("https://lknpd.nalog.ru/api/v1").then((response) => console.log(`NPD endpoint reachable: HTTP ${response.status}`)).catch((error) => { console.error(`NPD endpoint unreachable: ${error.name}`); process.exitCode = 1; })'
+          REMOTE
