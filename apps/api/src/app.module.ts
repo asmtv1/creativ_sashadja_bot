@@ -9,6 +9,7 @@ import { PrismaModule } from "./modules/prisma/prisma.module";
 import { TelegramAuthModule } from "./modules/telegram-auth/telegram-auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { ChannelSubscriptionsModule } from "./modules/channel-subscriptions/channel-subscriptions.module";
+import { NpdReceiptsModule } from "./modules/npd-receipts/npd-receipts.module";
 import { validateEnv } from "./config/env.schema";
 
 @Module({
@@ -25,7 +26,8 @@ import { validateEnv } from "./config/env.schema";
     OrdersModule,
     BotInternalModule,
     AdminModule,
-    ChannelSubscriptionsModule
+    ChannelSubscriptionsModule,
+    NpdReceiptsModule
   ]
 })
 export class AppModule {}

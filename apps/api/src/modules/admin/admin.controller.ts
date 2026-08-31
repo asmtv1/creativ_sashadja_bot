@@ -182,6 +182,37 @@ export class AdminController {
     }));
   }
 
+  @Get("npd-receipts")
+  async npdReceipts() {
+    const receipts = await this.prisma.npdReceipt.findMany({
+      include: {
+        user: true,
+        order: { include: { course: true } },
+        channelPayment: { include: { subscription: { include: { product: true } } } },
+        operations: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+      orderBy: { operationAt: "desc" },
+      take: 500,
+    });
+    return receipts.map((receipt) => {
+      const operation = receipt.operations[0];
+      const product = receipt.order?.course.title ?? receipt.channelPayment?.subscription.product.title ?? receipt.serviceName;
+      return {
+        id: receipt.id,
+        telegramId: receipt.user.telegramId,
+        username: receipt.user.username,
+        name: [receipt.user.firstName, receipt.user.lastName].filter(Boolean).join(" ") || null,
+        product,
+        amountKopecks: receipt.amountKopecks,
+        currency: receipt.currency,
+        paidAt: receipt.operationAt.toISOString(),
+        status: receipt.status,
+        receiptUrl: receipt.printUrl,
+        lastError: operation?.lastErrorRedacted ?? null,
+      };
+    });
+  }
+
   @Get("users/:telegramId/access")
   accessForUser(@Param("telegramId") telegramId: string) {
     return this.prisma.courseAccess.findMany({

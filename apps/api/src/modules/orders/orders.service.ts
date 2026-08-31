@@ -6,6 +6,7 @@ import { CreateCourseCheckoutResponse } from "@course/shared";
 import { CoursesService } from "../courses/courses.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { YooKassaClient, YooKassaPayment } from "../yookassa/yookassa.client";
+import { NpdReceiptsService } from "../npd-receipts/npd-receipts.service";
 
 type PendingOrder = {
   id: string;
@@ -25,7 +26,8 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly courses: CoursesService,
     private readonly yookassa: YooKassaClient,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly npdReceipts: NpdReceiptsService
   ) {}
 
   async createCheckoutForUser(
@@ -242,6 +244,11 @@ export class OrdersService {
           payload: { orderId: order.id }
         }
       });
+    }
+    const user = await this.prisma.telegramUser.findUnique({ where: { id: order.userId }, select: { telegramId: true } });
+    const course = await this.prisma.course.findUnique({ where: { id: order.courseId }, select: { title: true } });
+    if (user && course) {
+      await this.npdReceipts.queueCourseReceipt({ orderId: order.id, userId: order.userId, telegramId: user.telegramId, amountKopecks: order.amountKopecks, currency: order.currency, serviceName: course.title, paidAt });
     }
   }
 }

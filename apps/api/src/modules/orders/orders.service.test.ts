@@ -22,6 +22,7 @@ function createPrisma() {
       findUnique: vi.fn(async () => ({
         id: "course_1",
         slug: "basic-course",
+        title: "Базовый курс",
         priceKopecks: 59900,
         currency: "RUB",
         isPublished: true
@@ -71,7 +72,8 @@ describe("OrdersService direct YooKassa SBP flow", () => {
       prisma as any,
       { hasAccess: vi.fn(async () => false) } as any,
       yookassa as any,
-      { getOrThrow: () => "https://course.example" } as any
+      { getOrThrow: () => "https://course.example" } as any,
+      { queueCourseReceipt: vi.fn() } as any
     );
 
     const result = await service.createCheckoutForTelegramUser("42", "basic-course");
@@ -102,7 +104,8 @@ describe("OrdersService direct YooKassa SBP flow", () => {
       prisma as any,
       { hasAccess: vi.fn(async () => false) } as any,
       { getPayment: vi.fn(async () => successfulRemotePayment) } as any,
-      { getOrThrow: () => "https://course.example" } as any
+      { getOrThrow: () => "https://course.example" } as any,
+      { queueCourseReceipt: vi.fn() } as any
     );
 
     await service.handleWebhook("yookassa_payment_1");
@@ -135,7 +138,8 @@ describe("OrdersService direct YooKassa SBP flow", () => {
           payment_method: { type: "bank_card" }
         }))
       } as any,
-      { getOrThrow: () => "https://course.example" } as any
+      { getOrThrow: () => "https://course.example" } as any,
+      { queueCourseReceipt: vi.fn() } as any
     );
 
     await expect(service.handleWebhook("yookassa_payment_1")).rejects.toThrow(

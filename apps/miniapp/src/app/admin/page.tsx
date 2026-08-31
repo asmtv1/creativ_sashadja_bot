@@ -26,6 +26,19 @@ type Dashboard = {
   metrics: { openedBot: number; paidUsers: number; revenueKopecks: number };
   users: DashboardUser[];
 };
+type Receipt = {
+  id: string;
+  telegramId: string;
+  username: string | null;
+  name: string | null;
+  product: string;
+  amountKopecks: number;
+  currency: string;
+  paidAt: string;
+  status: "PENDING" | "ISSUED" | "RECONCILIATION_REQUIRED" | "FAILED";
+  receiptUrl: string | null;
+  lastError: string | null;
+};
 
 const PRODUCT_META: Record<
   ProductKey,
@@ -53,6 +66,7 @@ export default function AdminPage() {
   const [dashboards, setDashboards] = useState<
     Partial<Record<ProductKey, Dashboard>>
   >({});
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [isLoading, setLoading] = useState(false);
   const [accessTarget, setAccessTarget] = useState("");
   const [notice, setNotice] = useState<{
@@ -73,12 +87,17 @@ export default function AdminPage() {
     setDashboards((current) => ({ ...current, [tab]: payload }));
   }
 
+  async function loadReceipts(activeCredentials = credentials) {
+    const payload = (await adminRequest("/api/admin/npd-receipts", activeCredentials)) as Receipt[];
+    setReceipts(payload);
+  }
+
   async function signIn(event: FormEvent) {
     event.preventDefault();
     setNotice(null);
     setLoading(true);
     try {
-      await Promise.all([loadDashboard("course"), loadDashboard("channel")]);
+      await Promise.all([loadDashboard("course"), loadDashboard("channel"), loadReceipts()]);
       setAuthorized(true);
     } catch {
       setNotice({
@@ -230,6 +249,7 @@ export default function AdminPage() {
             onClick={() => {
               setAuthorized(false);
               setDashboards({});
+              setReceipts([]);
               setCredentials({ user: "", password: "" });
             }}
           >
@@ -362,6 +382,23 @@ export default function AdminPage() {
                 <p className="admin-empty">{PRODUCT_META[activeTab].empty}</p>
               )}
             </section>
+            <section className="admin-table-section" aria-labelledby="admin-receipts-title">
+              <div className="admin-table-section__heading">
+                <div>
+                  <h3 id="admin-receipts-title">Чеки НПД</h3>
+                  <p>Последние {receipts.length} записей. Ссылка появляется только после подтверждения НПД.</p>
+                </div>
+                <button className="admin-refresh" type="button" onClick={() => void loadReceipts()} disabled={isLoading}>Обновить чеки</button>
+              </div>
+              {receipts.length ? (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead><tr><th>Покупатель</th><th>Товар</th><th>Оплата</th><th>Статус чека</th><th>Чек</th></tr></thead>
+                    <tbody>{receipts.map((receipt) => <ReceiptRow key={receipt.id} receipt={receipt} />)}</tbody>
+                  </table>
+                </div>
+              ) : <p className="admin-empty">Чеков пока нет.</p>}
+            </section>
           </>
         ) : (
           <div className="admin-loading">Загружаем данные…</div>
@@ -369,6 +406,17 @@ export default function AdminPage() {
       </section>
     </main>
   );
+}
+function ReceiptRow({ receipt }: { receipt: Receipt }) {
+  const handle = receipt.username ? `@${receipt.username}` : `ID ${receipt.telegramId}`;
+  const status = receipt.status === "ISSUED" ? "Сформирован" : receipt.status === "PENDING" ? "В очереди" : receipt.status === "RECONCILIATION_REQUIRED" ? "Нужна сверка" : "Ошибка";
+  return <tr>
+    <td><strong>{receipt.name || handle}</strong><small>{receipt.name ? handle : ""}</small></td>
+    <td>{receipt.product}</td>
+    <td>{formatRubles(receipt.amountKopecks)}<small>{formatDate(receipt.paidAt)}</small></td>
+    <td><span className={receipt.status === "ISSUED" ? "admin-status active" : "admin-status"}>{status}</span>{receipt.lastError ? <small>{receipt.lastError}</small> : null}</td>
+    <td>{receipt.receiptUrl ? <a href={receipt.receiptUrl} target="_blank" rel="noreferrer">Открыть чек</a> : "—"}</td>
+  </tr>;
 }
 
 function Metric({

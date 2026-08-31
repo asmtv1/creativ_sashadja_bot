@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ChannelSubscriptionsService } from "./channel-subscriptions.service";
 
 describe("ChannelSubscriptionsService stopAutoRenew", () => {
-  it("allows checkout while the receipt provider is disabled", async () => {
+  it("creates checkout independently of receipt processing", async () => {
     const previousEnabled = process.env.CHANNEL_SUBSCRIPTION_ENABLED;
     const previousPublicBaseUrl = process.env.PUBLIC_BASE_URL;
     process.env.CHANNEL_SUBSCRIPTION_ENABLED = "true";
@@ -55,7 +55,8 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
           amount: { value: "390.00", currency: "RUB" },
           confirmation: { confirmation_url: "https://yookassa.example/checkout" }
         }))
-      } as any
+      } as any,
+      { queueChannelReceipt: vi.fn() } as any
     );
 
     try {
@@ -102,7 +103,8 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
           amount: { value: "390.00", currency: "RUB" },
           cancellation_details: { reason: "canceled_by_merchant" }
         }))
-      } as any
+      } as any,
+      { queueChannelReceipt: vi.fn() } as any
     );
 
     await service.stopAutoRenew("42");

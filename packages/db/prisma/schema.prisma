@@ -40,8 +40,31 @@ enum OutboxStatus {
 
 enum OutboxType {
   PAYMENT_SUCCEEDED
+  NPD_RECEIPT_ISSUED
   ACCESS_GRANTED
   ACCESS_REVOKED
+}
+
+enum NpdConnectionStatus {
+  ACTIVE
+  REAUTH_REQUIRED
+  DISABLED
+}
+
+enum NpdReceiptStatus {
+  PENDING
+  ISSUED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum NpdReceiptOperationStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  SUCCEEDED
+  RECONCILIATION_REQUIRED
+  FAILED
 }
 
 enum WebhookStatus {
@@ -103,6 +126,7 @@ model TelegramUser {
   orders       Order[]
   access       CourseAccess[]
   channelSubscriptions ChannelSubscription[]
+  npdReceipts  NpdReceipt[]
 }
 
 model ChannelProduct {
@@ -170,6 +194,7 @@ model ChannelPayment {
   updatedAt         DateTime             @updatedAt
   subscription      ChannelSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   receipts          ReceiptOperation[]
+  npdReceipt        NpdReceipt?
 
   @@index([subscriptionId, status])
 }
@@ -271,6 +296,75 @@ model Order {
   course            Course          @relation(fields: [courseId], references: [id], onDelete: Restrict)
   payments          Payment[]
   access            CourseAccess[]
+  npdReceipt        NpdReceipt?
+}
+
+/// Singleton NPD connection. Refresh tokens are AES-256-GCM encrypted at rest.
+model NpdConnection {
+  id                     String              @id @default("default") @db.VarChar(32)
+  inn                    String              @db.VarChar(12)
+  deviceId               String              @db.VarChar(128)
+  refreshTokenCipher     Bytes
+  refreshTokenIv         Bytes
+  refreshTokenTag        Bytes
+  refreshTokenKeyVersion Int
+  status                 NpdConnectionStatus @default(ACTIVE)
+  fiscalizationStartedAt DateTime?
+  lastAuthorizedAt       DateTime?
+  lastSuccessfulOperationAt DateTime?
+  lastRefreshedAt        DateTime?
+  lastErrorCode          String?             @db.VarChar(64)
+  lastErrorRedacted      String?             @db.VarChar(1024)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  receipts               NpdReceipt[]
+}
+
+model NpdReceipt {
+  id                 String           @id @default(uuid()) @db.Uuid
+  orderId            String?          @unique @db.Uuid
+  channelPaymentId   String?          @unique @db.Uuid
+  userId             String           @db.Uuid
+  connectionId       String           @default("default") @db.VarChar(32)
+  status             NpdReceiptStatus @default(PENDING)
+  amountKopecks      Int
+  currency           String           @default("RUB") @db.VarChar(3)
+  serviceName        String           @db.VarChar(256)
+  telegramId         String
+  operationAt        DateTime
+  providerReceiptId  String?          @unique @db.VarChar(128)
+  printUrl           String?          @db.VarChar(2048)
+  jsonUrl            String?          @db.VarChar(2048)
+  issuedAt           DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  order              Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  channelPayment     ChannelPayment?  @relation(fields: [channelPaymentId], references: [id], onDelete: Restrict)
+  user               TelegramUser     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  connection         NpdConnection    @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  operations         NpdReceiptOperation[]
+
+  @@index([connectionId, status, createdAt])
+}
+
+model NpdReceiptOperation {
+  id                String                    @id @default(uuid()) @db.Uuid
+  receiptId         String                    @db.Uuid
+  status            NpdReceiptOperationStatus @default(PENDING)
+  attemptCount      Int                       @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?                 @default(now())
+  leaseOwner        String?                   @db.VarChar(128)
+  leaseExpiresAt    DateTime?
+  completedAt       DateTime?
+  lastErrorCode     String?                   @db.VarChar(64)
+  lastErrorRedacted String?                   @db.VarChar(1024)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  receipt           NpdReceipt                @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@unique([receiptId])
+  @@index([status, nextAttemptAt, leaseExpiresAt])
 }
 
 model Payment {

@@ -3,16 +3,15 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 import { Prisma } from "@course/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
-import { DisabledSelfEmployedReceiptProvider, SelfEmployedReceiptProvider } from "./receipt.provider";
 import { YooKassaClient, YooKassaPayment } from "../yookassa/yookassa.client";
+import { NpdReceiptsService } from "../npd-receipts/npd-receipts.service";
 
 const PRODUCT_SLUG = "creative-ideas";
 const RETRY_OFFSETS_MINUTES = [0, 60, 240, 600, 1680]; // T-4h, T-3h, T, T+6h, T+24h
 
 @Injectable()
 export class ChannelSubscriptionsService {
-  private readonly receipts: SelfEmployedReceiptProvider = new DisabledSelfEmployedReceiptProvider();
-  constructor(private readonly prisma: PrismaService, private readonly users: UsersService, private readonly yookassa: YooKassaClient) {}
+  constructor(private readonly prisma: PrismaService, private readonly users: UsersService, private readonly yookassa: YooKassaClient, private readonly npdReceipts: NpdReceiptsService) {}
 
   async createCheckout(telegramId: string, termsAccepted: boolean) {
     if (!termsAccepted) throw new BadRequestException("Terms acceptance is required");
@@ -98,7 +97,6 @@ export class ChannelSubscriptionsService {
   async runRenewals(now = new Date()) {
     const due = await this.prisma.channelSubscription.findMany({ where: { autoRenew: true, status: { in: ["ACTIVE", "PAST_DUE"] }, OR: [{ nextChargeAt: { lte: now } }, { nextAttemptAt: { lte: now } }] }, include: { product: true } });
     for (const sub of due) await this.renewOne(sub.id, now);
-    await this.runReceiptOperations(now);
   }
 
   private async renewOne(subscriptionId: string, now: Date) {
@@ -121,12 +119,12 @@ export class ChannelSubscriptionsService {
     await this.prisma.$transaction([
       this.prisma.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, providerPayload: { status: remote.status } as Prisma.InputJsonValue } }),
       this.prisma.channelSubscription.update({ where: { id: sub.id }, data: { status: retainAutoRenew ? "ACTIVE" : "CANCELED_AT_PERIOD_END", autoRenew: retainAutoRenew, paymentMethodId: retainAutoRenew ? remote.payment_method.id : null, periodStart: start, periodEnd: end, nextChargeAt: retainAutoRenew ? new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000) : null, nextAttemptAt: null, attemptCount: 0 } }),
-      this.prisma.receiptOperation.upsert({ where: { paymentId_type: { paymentId: payment.id, type: "ISSUE" } }, update: {}, create: { paymentId: payment.id, type: "ISSUE" } })
     ]);
+    const user = await this.prisma.telegramUser.findUnique({ where: { id: sub.userId }, select: { telegramId: true } });
+    if (user) await this.npdReceipts.queueChannelReceipt({ paymentId: payment.id, userId: sub.userId, telegramId: user.telegramId, amountKopecks: payment.amountKopecks, currency: payment.currency, serviceName: sub.product.title, paidAt: now });
   }
 
   private async markAttemptFailed(sub: any, now: Date, _failureCode: string) { const attempt = sub.attemptCount + 1; const end = sub.periodEnd ?? now; const final = attempt >= RETRY_OFFSETS_MINUTES.length || now >= new Date(end.getTime() + sub.product.gracePeriodMinutes * 60_000); const offset = RETRY_OFFSETS_MINUTES[Math.min(attempt, RETRY_OFFSETS_MINUTES.length - 1)] ?? 0; await this.prisma.channelSubscription.update({ where: { id: sub.id }, data: { status: final ? "EXPIRED" : "PAST_DUE", attemptCount: attempt, nextAttemptAt: final ? null : new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000 + offset * 60_000) } }); }
-  private async runReceiptOperations(now: Date) { const operations = await this.prisma.receiptOperation.findMany({ where: { status: { in: ["PENDING", "FAILED"] }, nextAttemptAt: { lte: now } }, include: { payment: true }, take: 20 }); for (const operation of operations) { try { if (operation.type === "ISSUE") { const result = await this.receipts.issueReceipt({ id: operation.paymentId, amountKopecks: operation.payment.amountKopecks, currency: operation.payment.currency, paidAt: operation.payment.paidAt ?? now }); await this.prisma.receiptOperation.update({ where: { id: operation.id }, data: { status: "SUCCEEDED", externalId: result.externalId, receiptUrl: result.receiptUrl, lastError: null } }); } } catch (error) { await this.prisma.receiptOperation.update({ where: { id: operation.id }, data: { status: "FAILED", attempts: { increment: 1 }, nextAttemptAt: new Date(now.getTime() + 15 * 60_000), lastError: error instanceof Error ? error.message.slice(0, 300) : "Receipt error" } }); } } }
   private async productOrThrow() { const product = await this.prisma.channelProduct.findUnique({ where: { slug: process.env.CHANNEL_PRODUCT_SLUG ?? PRODUCT_SLUG } }); if (!product) throw new NotFoundException("Channel product not found"); return product; }
   private async subscriptionForTelegramId(telegramId: string) { const product = await this.productOrThrow(); const user = await this.users.findByTelegramId(telegramId); const sub = user ? await this.prisma.channelSubscription.findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } }) : null; if (!sub) throw new NotFoundException("Subscription not found"); return sub; }
   private async status(id: string, confirmationUrl?: string) { const sub = await this.prisma.channelSubscription.findUniqueOrThrow({ where: { id }, include: { product: true } }); return { status: sub.status, activeUntil: sub.periodEnd?.toISOString() ?? null, nextChargeAt: sub.nextChargeAt?.toISOString() ?? null, autoRenew: sub.autoRenew, amountKopecks: sub.product.priceKopecks, currency: sub.product.currency, ...(confirmationUrl ? { confirmationUrl } : {}) }; }

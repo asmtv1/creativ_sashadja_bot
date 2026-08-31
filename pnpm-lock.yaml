@@ -56,6 +56,9 @@ importers:
       '@course/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@course/npd':
+        specifier: workspace:*
+        version: link:../../packages/npd
       '@course/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -167,6 +170,12 @@ importers:
       prisma:
         specifier: ^6.11.1
         version: 6.19.3(typescript@5.9.3)
+
+  packages/npd:
+    devDependencies:
+      '@course/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/shared:
     dependencies:
@@ -1839,6 +1848,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

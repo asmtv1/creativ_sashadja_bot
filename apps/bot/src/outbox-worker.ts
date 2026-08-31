@@ -41,6 +41,12 @@ function messageForOutboxItem(item: BotOutboxItem): string {
   if (item.type === "ACCESS_GRANTED") {
     return "Доступ к курсу открыт администратором.";
   }
+  if (item.type === "NPD_RECEIPT_ISSUED") {
+    const payload = item.payload && typeof item.payload === "object" ? item.payload as { printUrl?: unknown; serviceName?: unknown } : {};
+    const serviceName = typeof payload.serviceName === "string" ? payload.serviceName : "покупку";
+    const printUrl = typeof payload.printUrl === "string" && /^https:\/\//.test(payload.printUrl) ? payload.printUrl : null;
+    return printUrl ? `Чек за ${serviceName} сформирован: ${printUrl}` : `Чек за ${serviceName} сформирован.`;
+  }
   if (item.type === "ACCESS_REVOKED") {
     return "Доступ к курсу был отозван.";
   }

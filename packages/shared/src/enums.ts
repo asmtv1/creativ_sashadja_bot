@@ -41,6 +41,7 @@ export type OutboxStatus = (typeof OutboxStatus)[keyof typeof OutboxStatus];
 
 export const OutboxType = {
   PAYMENT_SUCCEEDED: "PAYMENT_SUCCEEDED",
+  NPD_RECEIPT_ISSUED: "NPD_RECEIPT_ISSUED",
   ACCESS_GRANTED: "ACCESS_GRANTED",
   ACCESS_REVOKED: "ACCESS_REVOKED"
 } as const;

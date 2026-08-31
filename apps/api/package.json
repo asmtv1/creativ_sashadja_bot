@@ -9,10 +9,12 @@
     "start": "node dist/main.js",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "npd:bootstrap": "tsx --env-file-if-exists=../../.env src/scripts/npd-bootstrap.ts"
   },
   "dependencies": {
     "@course/db": "workspace:*",
+    "@course/npd": "workspace:*",
     "@course/shared": "workspace:*",
     "@nestjs/common": "^11.1.3",
     "@nestjs/config": "^4.0.2",

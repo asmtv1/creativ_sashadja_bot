@@ -21,7 +21,7 @@ An active channel subscriber can open `/subscription` or tap «Попасть в
 The production checkout can be controlled independently with `CHANNEL_SUBSCRIPTION_ENABLED` and the database product's `enabled` field. Before the final commercial launch, complete all of these:
 
 1. YooKassa has approved recurring SBP payments for this shop.
-2. A real `SelfEmployedReceiptProvider` has been selected and tested for both issuing and cancelling receipts. Temporarily, checkout does not wait for this provider: receipt operations are persisted and remain failed/retryable until it is connected.
+2. The NPD connection is bootstrapped, fiscalization is enabled only after a paid test, and the Telegram receipt link has been verified. A refund/cancellation smoke test is still required before commercial launch.
 3. Seller legal name, INN, contact and approved terms version are provided.
 4. The bot is made an administrator in the channel and `/bind_channel <CHANNEL_BIND_SECRET>` is sent as a channel post; the bot deletes that message after binding.
 5. The owner manually revokes the old shared channel link, then performs a real initial payment and a real refund smoke test.
@@ -215,3 +215,9 @@ local/test database, and commit both `schema.prisma` and the generated
 or seed-only data into migration SQL. To change production course content,
 update `packages/db/prisma/seed-data/course.ts`; that idempotent seed is applied
 by deployment and can still be run manually with `pnpm db:seed`.
+
+# NPD receipts
+
+Successful YooKassa payments are written to a durable NPD receipt outbox. The buyer receives a Telegram message with the official receipt link only after the receipt has been confirmed by NPD. Purchase access is not rolled back when fiscalization has a temporary error.
+
+Before enabling it in production, run the migration, set an AES-256 `NPD_TOKEN_ENCRYPTION_KEY`, and run `pnpm --filter @course/api npd:bootstrap` interactively on the server. It requests the NPD SMS code only in the terminal and stores an encrypted refresh token. After a paid test and a verified Telegram receipt, set `NPD_PROCESSING_ENABLED=true`. Keep it `false` while configuring or investigating any discrepancy.

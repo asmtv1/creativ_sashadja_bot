@@ -44,6 +44,21 @@ const channelDashboard = {
   metrics: { openedBot: 12, paidUsers: 1, revenueKopecks: 39000 },
   users: [],
 };
+const receipts = [
+  {
+    id: "receipt-1",
+    telegramId: "42",
+    username: "student",
+    name: "Иван",
+    product: "Креативный контент | обучение",
+    amountKopecks: 59900,
+    currency: "RUB",
+    paidAt: "2026-08-01T00:00:00.000Z",
+    status: "ISSUED",
+    receiptUrl: "https://lknpd.nalog.ru/receipt/1/print",
+    lastError: null,
+  },
+];
 
 describe("AdminPage", () => {
   it("loads both products and separates them into tabs", async () => {
@@ -53,7 +68,11 @@ describe("AdminPage", () => {
         async (input: string) =>
           new Response(
             JSON.stringify(
-              input.includes("/channel") ? channelDashboard : courseDashboard,
+              input.includes("/npd-receipts")
+                ? receipts
+                : input.includes("/channel")
+                  ? channelDashboard
+                  : courseDashboard,
             ),
             { status: 200 },
           ),
@@ -82,5 +101,8 @@ describe("AdminPage", () => {
       ).toBeTruthy(),
     );
     expect(screen.getAllByText(/390.*₽/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Чеки НПД" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Открыть чек" }).getAttribute("href")).toBe(receipts[0]!.receiptUrl);
   });
 });
+import React from "react";
