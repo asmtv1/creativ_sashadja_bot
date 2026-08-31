@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "npd:bootstrap": "tsx --env-file-if-exists=../../.env src/scripts/npd-bootstrap.ts"
+    "npd:bootstrap": "tsx --env-file-if-exists=../../.env src/scripts/npd-bootstrap.ts",
+    "npd:cutover": "tsx --env-file-if-exists=../../.env src/scripts/npd-cutover.ts"
   },
   "dependencies": {
     "@course/db": "workspace:*",
