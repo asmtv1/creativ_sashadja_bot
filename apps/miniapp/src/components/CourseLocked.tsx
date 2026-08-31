@@ -1,4 +1,5 @@
 import { formatRubles } from "@course/shared";
+import Link from "next/link";
 
 type LockedCourse = {
   title: string;
@@ -59,6 +60,10 @@ export function CourseLocked({
           <p className={paymentMessage ? "locked-checkpoint__status" : undefined}>
             <span aria-hidden="true">ⓘ</span>
             {paymentMessage ?? "Оплата откроется прямо здесь. После неё доступ появится автоматически."}
+          </p>
+          <p className="locked-checkpoint__legal">
+            Нажимая кнопку, вы принимаете <Link href="/legal/offer">оферту</Link> и ознакомились с{" "}
+            <Link href="/legal/privacy">политикой конфиденциальности</Link>.
           </p>
         </div>
       </section>

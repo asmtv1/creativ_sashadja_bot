@@ -1,8 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import {
-  BotCompleteTelegramPaymentRequestSchema,
   BotCreateOrderRequestSchema,
-  BotValidateTelegramInvoiceRequestSchema,
   BotUserUpsertRequestSchema
 } from "@course/shared";
 import { InternalTokenGuard } from "../../common/guards/internal-token.guard";
@@ -26,30 +24,10 @@ export class BotInternalController {
     return this.users.upsertTelegramUser(BotUserUpsertRequestSchema.parse(body));
   }
 
-  @Post("orders")
-  createOrder(@Body() body: unknown) {
+  @Post("orders/checkout")
+  createCourseCheckout(@Body() body: unknown) {
     const input = BotCreateOrderRequestSchema.parse(body);
-    return this.orders.createOrderForTelegramUser(input.telegramId, input.courseSlug);
-  }
-
-  @Post("orders/:orderId/telegram/pre-checkout")
-  validateTelegramInvoice(@Param("orderId") orderId: string, @Body() body: unknown) {
-    const input = BotValidateTelegramInvoiceRequestSchema.parse(body);
-    return this.orders.validateTelegramInvoicePayment({ orderId, ...input });
-  }
-
-  @Post("orders/:orderId/telegram/successful-payment")
-  completeTelegramPayment(@Param("orderId") orderId: string, @Body() body: unknown) {
-    const input = BotCompleteTelegramPaymentRequestSchema.parse(body);
-    return this.orders.completeTelegramInvoicePayment({
-      orderId,
-      telegramId: input.telegramId,
-      providerPaymentChargeId: input.providerPaymentChargeId,
-      telegramPaymentChargeId: input.telegramPaymentChargeId,
-      amountKopecks: input.amountKopecks,
-      currency: input.currency,
-      rawPayload: input.rawPayload ?? null
-    });
+    return this.orders.createCheckoutForTelegramUser(input.telegramId, input.courseSlug);
   }
 
   @Get("users/:telegramId/course-access")
@@ -70,21 +48,28 @@ export class BotInternalController {
   @Get("outbox")
   async getOutbox(@Query("limit") limit?: string) {
     const take = Math.min(Number(limit ?? 20), 100);
-    return this.prisma.botOutbox.findMany({
+    const candidates = await this.prisma.botOutbox.findMany({
       where: {
         status: { in: ["PENDING", "FAILED"] },
-        nextAttemptAt: { lte: new Date() }
+        nextAttemptAt: { lte: new Date() },
+        OR: [{ lockedAt: null }, { lockedAt: { lte: new Date(Date.now() - 5 * 60_000) } }]
       },
       orderBy: { createdAt: "asc" },
       take
     });
+    const claimed = [];
+    for (const item of candidates) {
+      const result = await this.prisma.botOutbox.updateMany({ where: { id: item.id, OR: [{ lockedAt: null }, { lockedAt: { lte: new Date(Date.now() - 5 * 60_000) } }] }, data: { lockedAt: new Date() } });
+      if (result.count === 1) claimed.push(item);
+    }
+    return claimed;
   }
 
   @Post("outbox/:id/sent")
   markSent(@Param("id") id: string) {
     return this.prisma.botOutbox.update({
       where: { id },
-      data: { status: "SENT", sentAt: new Date(), lastError: null }
+      data: { status: "SENT", sentAt: new Date(), lastError: null, lockedAt: null }
     });
   }
 
@@ -96,7 +81,8 @@ export class BotInternalController {
         status: "FAILED",
         attempts: { increment: 1 },
         lastError: body.error ?? "Unknown Telegram delivery error",
-        nextAttemptAt: new Date(Date.now() + 30_000)
+        nextAttemptAt: new Date(Date.now() + 30_000),
+        lockedAt: null
       }
     });
   }

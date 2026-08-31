@@ -1,33 +1,21 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { CreateOrderRequestSchema } from "@course/shared";
 import { MiniAppAuthGuard } from "../telegram-auth/miniapp-auth.guard";
 import { OrdersService } from "./orders.service";
-import { TelegramInvoiceService } from "./telegram-invoice.service";
 
 @Controller("orders")
 @UseGuards(MiniAppAuthGuard)
 export class OrdersController {
-  constructor(
-    private readonly orders: OrdersService,
-    private readonly telegramInvoices: TelegramInvoiceService
-  ) {}
+  constructor(private readonly orders: OrdersService) {}
 
-  @Post()
-  create(@Req() request: any, @Body() body: unknown) {
+  @Post("checkout")
+  createCheckout(@Req() request: any, @Body() body: unknown) {
     const input = CreateOrderRequestSchema.parse(body);
-    return this.orders.createOrderForUser(request.session.userId, input.courseSlug);
+    return this.orders.createCheckoutForUser(request.session.userId, input.courseSlug);
   }
 
-  @Post("invoice")
-  async createInvoice(@Req() request: any, @Body() body: unknown) {
-    const input = CreateOrderRequestSchema.parse(body);
-    const order = await this.orders.createOrderForUser(request.session.userId, input.courseSlug);
-    if ("alreadyPaid" in order) {
-      return order;
-    }
-    return {
-      orderId: order.orderId,
-      invoiceUrl: await this.telegramInvoices.createInvoiceLink(order)
-    };
+  @Post(":orderId/verify")
+  verifyCheckout(@Req() request: any, @Param("orderId") orderId: string) {
+    return this.orders.verifyCheckoutForUser(request.session.userId, orderId);
   }
 }

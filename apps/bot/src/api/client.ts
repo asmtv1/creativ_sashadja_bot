@@ -1,11 +1,9 @@
 import {
-  BotCompleteTelegramPaymentResponse,
-  BotCompleteTelegramPaymentResponseSchema,
   BotCourseAccessResponseSchema,
-  BotValidateTelegramInvoiceResponseSchema,
-  BotCreateOrderResponseSchema,
+  BotCreateCourseCheckoutResponseSchema,
   BotOutboxItemSchema,
-  BotUserUpsertRequest
+  BotUserUpsertRequest,
+  ChannelSubscriptionStatusSchema
 } from "@course/shared";
 import { BotApi } from "../types";
 
@@ -32,53 +30,11 @@ export class InternalApiClient implements BotApi {
     return BotCourseAccessResponseSchema.parse(await this.request(url));
   }
 
-  async createOrder(telegramId: string) {
-    return BotCreateOrderResponseSchema.parse(
-      await this.request("/api/internal/bot/orders", {
+  async createCourseCheckout(telegramId: string) {
+    return BotCreateCourseCheckoutResponseSchema.parse(
+      await this.request("/api/internal/bot/orders/checkout", {
         method: "POST",
         body: { telegramId, courseSlug: this.config.courseSlug }
-      })
-    );
-  }
-
-  async validateTelegramInvoice(input: {
-    orderId: string;
-    telegramId: string;
-    amountKopecks: number;
-    currency: string;
-  }) {
-    return BotValidateTelegramInvoiceResponseSchema.parse(
-      await this.request(`/api/internal/bot/orders/${input.orderId}/telegram/pre-checkout`, {
-        method: "POST",
-        body: {
-          telegramId: input.telegramId,
-          amountKopecks: input.amountKopecks,
-          currency: input.currency
-        }
-      })
-    );
-  }
-
-  async completeTelegramPayment(input: {
-    orderId: string;
-    telegramId: string;
-    providerPaymentChargeId: string;
-    telegramPaymentChargeId: string;
-    amountKopecks: number;
-    currency: string;
-    rawPayload: unknown;
-  }): Promise<BotCompleteTelegramPaymentResponse> {
-    return BotCompleteTelegramPaymentResponseSchema.parse(
-      await this.request(`/api/internal/bot/orders/${input.orderId}/telegram/successful-payment`, {
-        method: "POST",
-        body: {
-          telegramId: input.telegramId,
-          providerPaymentChargeId: input.providerPaymentChargeId,
-          telegramPaymentChargeId: input.telegramPaymentChargeId,
-          amountKopecks: input.amountKopecks,
-          currency: input.currency,
-          rawPayload: input.rawPayload
-        }
       })
     );
   }
@@ -97,6 +53,22 @@ export class InternalApiClient implements BotApi {
       method: "POST",
       body: { error }
     });
+  }
+
+  async createChannelCheckout(telegramId: string) {
+    return ChannelSubscriptionStatusSchema.parse(await this.request("/api/internal/bot/channel-subscription/checkout", { method: "POST", body: { telegramId, acceptedTerms: true } }));
+  }
+  async getChannelSubscription(telegramId: string) {
+    return ChannelSubscriptionStatusSchema.parse(await this.request(`/api/internal/bot/channel-subscription/${encodeURIComponent(telegramId)}`));
+  }
+  async stopChannelRenewal(telegramId: string) {
+    return this.request(
+      `/api/internal/bot/channel-subscription/${encodeURIComponent(telegramId)}/stop-renewal`,
+      { method: "POST" }
+    );
+  }
+  async bindChannel(input: { secret: string; chatId: string; title?: string }) {
+    return this.request("/api/internal/bot/channel-subscription/bind", { method: "POST", body: input });
   }
 
   private async request(path: string, init: { method?: string; body?: unknown } = {}) {

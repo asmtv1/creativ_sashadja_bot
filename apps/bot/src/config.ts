@@ -6,7 +6,6 @@ const optionalNonEmptyString = () => z.preprocess(emptyStringToUndefined, z.stri
 const BotConfigSchema = z.object({
   BOT_MODE: z.enum(["polling", "webhook"]).default("polling"),
   TELEGRAM_BOT_TOKEN: z.string().min(1),
-  TELEGRAM_PAYMENT_PROVIDER_TOKEN: optionalNonEmptyString(),
   TELEGRAM_WEBHOOK_SECRET: optionalNonEmptyString(),
   PUBLIC_BASE_URL: z.string().url(),
   API_BASE_URL: z.string().url().default("http://api:3001"),

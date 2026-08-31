@@ -26,26 +26,24 @@ function createContext(): BotHandlerContext & {
 }
 
 describe("handleStart", () => {
-  it("shows the Mini App button when the user already has access", async () => {
+  it("always shows the welcome image and both product choices", async () => {
     const ctx = createContext();
     await handleStart(ctx, {
       api: {
-        upsertBotUser: vi.fn(),
-        getCourseAccess: vi.fn(async () => ({ hasAccess: true }))
+        upsertBotUser: vi.fn()
       },
       miniAppUrl: "https://course.example.com"
     });
 
-    expect(ctx.replies.at(-1)?.text).toContain("Открыть курс");
-    expect(JSON.stringify(ctx.replies.at(-1)?.options)).toContain("web_app");
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Смотреть урок");
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Попасть в канал с идеями");
   });
 
   it("shows the buy button when the user has no access", async () => {
     const ctx = createContext();
     await handleStart(ctx, {
       api: {
-        upsertBotUser: vi.fn(),
-        getCourseAccess: vi.fn(async () => ({ hasAccess: false }))
+        upsertBotUser: vi.fn()
       },
       miniAppUrl: "https://course.example.com"
     });
@@ -54,7 +52,7 @@ describe("handleStart", () => {
       caption: expect.stringContaining("Меня зовут Саша Черезова"),
       parse_mode: "HTML"
     });
-    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Геймификация в контенте");
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Смотреть урок");
   });
 
   it("does not crash /start when the API is temporarily unavailable", async () => {
@@ -62,8 +60,7 @@ describe("handleStart", () => {
     await expect(
       handleStart(ctx, {
         api: {
-          upsertBotUser: vi.fn(async () => Promise.reject(new Error("api down"))),
-          getCourseAccess: vi.fn(async () => Promise.reject(new Error("api down")))
+          upsertBotUser: vi.fn(async () => Promise.reject(new Error("api down")))
         },
         miniAppUrl: "https://course.example.com"
       })
@@ -73,6 +70,6 @@ describe("handleStart", () => {
       caption: expect.stringContaining("Меня зовут Саша Черезова"),
       parse_mode: "HTML"
     });
-    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Геймификация в контенте");
+    expect(JSON.stringify(ctx.photos.at(-1)?.options)).toContain("Попасть в канал с идеями");
   });
 });

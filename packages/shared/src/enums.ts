@@ -55,3 +55,14 @@ export const WebhookStatus = {
 } as const;
 
 export type WebhookStatus = (typeof WebhookStatus)[keyof typeof WebhookStatus];
+
+export const ChannelSubscriptionStatus = {
+  PENDING: "PENDING", ACTIVE: "ACTIVE", PAST_DUE: "PAST_DUE",
+  CANCELED_AT_PERIOD_END: "CANCELED_AT_PERIOD_END", EXPIRED: "EXPIRED", REFUNDED: "REFUNDED"
+} as const;
+export type ChannelSubscriptionStatus = (typeof ChannelSubscriptionStatus)[keyof typeof ChannelSubscriptionStatus];
+
+export const ChannelPaymentStatus = {
+  PENDING: "PENDING", SUCCEEDED: "SUCCEEDED", CANCELED: "CANCELED", FAILED: "FAILED", REFUNDED: "REFUNDED"
+} as const;
+export type ChannelPaymentStatus = (typeof ChannelPaymentStatus)[keyof typeof ChannelPaymentStatus];

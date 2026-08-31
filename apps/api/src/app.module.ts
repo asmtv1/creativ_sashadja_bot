@@ -8,6 +8,7 @@ import { OrdersModule } from "./modules/orders/orders.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { TelegramAuthModule } from "./modules/telegram-auth/telegram-auth.module";
 import { UsersModule } from "./modules/users/users.module";
+import { ChannelSubscriptionsModule } from "./modules/channel-subscriptions/channel-subscriptions.module";
 import { validateEnv } from "./config/env.schema";
 
 @Module({
@@ -23,7 +24,8 @@ import { validateEnv } from "./config/env.schema";
     CoursesModule,
     OrdersModule,
     BotInternalModule,
-    AdminModule
+    AdminModule,
+    ChannelSubscriptionsModule
   ]
 })
 export class AppModule {}

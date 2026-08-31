@@ -1,16 +1,49 @@
 # Telegram Course Bot
 
-TypeScript monorepo for a Telegram bot, NestJS API, Next.js Telegram Mini App, Prisma/PostgreSQL, YooKassa payments through Telegram invoices, and Kinescope lesson playback.
+TypeScript monorepo for a Telegram bot, NestJS API, Next.js Telegram Mini App, Prisma/PostgreSQL, direct YooKassa SBP payments, and Kinescope lesson playback.
 
 ## Architecture
 
 - `apps/api` owns business logic, payments, access grants, Telegram Mini App auth, admin endpoints, and all DB writes.
-- `apps/bot` is a grammY worker. It upserts Telegram users, creates orders through the internal API, sends Telegram invoices with the YooKassa provider token, handles `PreCheckoutQuery` and `SuccessfulPayment`, and sends outbox messages.
+- `apps/bot` is a grammY worker. It upserts Telegram users, requests a direct YooKassa SBP checkout through the internal API, sends its secure payment URL, and sends outbox messages after verified payment.
 - `apps/miniapp` is the Telegram Mini App. It sends raw `Telegram.WebApp.initData` to the API and never exposes Kinescope API tokens.
 - `packages/db` owns Prisma schema, generated client, and seed content.
 - `packages/shared` owns DTO schemas, enums, and money helpers only.
 
 Telegram platform note: digital goods sold inside Telegram apps may require Telegram Stars. YooKassa is isolated behind a provider-shaped boundary so a Stars provider can be added or swapped before public launch.
+
+## Channel subscription (disabled until release approval)
+
+The `creative-ideas` product is separate from the course and starts disabled. Both it and the course use the same direct YooKassa API credentials and offer SBP only. The API requests `payment_method_data.type=sbp` for every first payment and accepts a saved method for renewal only when YooKassa confirms that it is also `sbp`. Telegram invoices and the BotFather payment-provider token are not used.
+
+An active channel subscriber can open `/subscription` or tap «Попасть в канал с идеями» in the bot to see a visible «Остановить продление» button. Confirmation stops future renewals, clears the saved payment-method identifier from this system, and attempts to cancel an already-pending renewal. Paid access remains available until its current period ends.
+
+Do not set `CHANNEL_SUBSCRIPTION_ENABLED=true` or enable the database product until all of these are complete:
+
+1. YooKassa has approved recurring SBP payments for this shop.
+2. A real `SelfEmployedReceiptProvider` has been selected and tested for both issuing and cancelling receipts. The committed default is deliberately `disabled` and blocks checkout.
+3. Seller legal name, INN, contact and approved terms version are provided.
+4. The bot is made an administrator in the channel and `/bind_channel <CHANNEL_BIND_SECRET>` is sent as a channel post; the bot deletes that message after binding.
+5. The owner manually revokes the old shared channel link, then performs a real initial payment and a real refund smoke test.
+6. Telegram Stars/platform-policy risk has been acknowledged separately from this technical checklist.
+
+No production webhook registration, migration, payment, or secret creation is performed by this repository change.
+
+Useful read-only / emergency SQL (replace values explicitly):
+
+```sql
+-- subscription state
+SELECT s.status, s."periodEnd", s."nextChargeAt", s."autoRenew", u."telegramId"
+FROM "ChannelSubscription" s JOIN "TelegramUser" u ON u.id = s."userId";
+
+-- disable renewal for one explicit subscription
+UPDATE "ChannelSubscription" SET "autoRenew" = false, status = 'CANCELED_AT_PERIOD_END'
+WHERE id = '<subscription UUID>';
+
+-- preserve a manually admitted member from automated removal
+UPDATE "ChannelMembership" SET source = 'EXEMPT'
+WHERE "subscriptionId" = '<subscription UUID>';
+```
 
 ## Local Setup
 
@@ -22,11 +55,21 @@ DATABASE_URL="postgresql://course:course@localhost:5432/course?schema=public" pn
 
 Edit `packages/db/prisma/seed-data/course.ts` with the real course title, price, Kinescope video IDs, and embed URLs.
 
-For YooKassa payments inside Telegram, connect YooKassa in `@BotFather` through Bot Settings -> Payments and put the returned provider token into:
+Set the direct YooKassa API credentials in `.env`. They are used by both the
+course and the channel subscription:
 
 ```bash
-TELEGRAM_PAYMENT_PROVIDER_TOKEN=
+YOOKASSA_SHOP_ID=
+YOOKASSA_SECRET_KEY=
+YOOKASSA_WEBHOOK_SECRET=
 ```
+
+`YOOKASSA_WEBHOOK_SECRET` must be a separate random value of at least
+16 characters. In the YooKassa dashboard, configure the `payment.succeeded`
+and `payment.canceled` notifications to
+`https://sasha.gafus.ru/api/webhooks/yookassa/<YOOKASSA_WEBHOOK_SECRET>`.
+The API always fetches the payment from YooKassa again and validates its
+amount, currency, and metadata before granting access.
 
 ## Development
 
@@ -71,8 +114,8 @@ Public routing through Caddy:
 After deploy:
 
 1. Set Telegram webhook with `secret_token` matching `TELEGRAM_WEBHOOK_SECRET`.
-2. Connect YooKassa payments for the bot in `@BotFather` and set `TELEGRAM_PAYMENT_PROVIDER_TOKEN`.
-3. Configure BotFather Mini App URL: `https://sasha.gafus.ru`.
+2. In the YooKassa dashboard, configure `payment.succeeded` and `payment.canceled` webhooks for the deployed `YOOKASSA_WEBHOOK_SECRET`.
+3. Configure BotFather Mini App URL: `https://sasha.gafus.ru`. No BotFather payment provider is needed.
 4. Configure Kinescope privacy/domain rules for the same domain. In the player template, enable a dynamic watermark (random or stripes); the API supplies each authorized viewer's verified Telegram ID and current username through the `watermark` embed parameter.
 
 ## CI/CD
@@ -103,15 +146,14 @@ Required GitHub Actions secrets:
 - `ADMIN_BASIC_USER`: admin panel login.
 - `ADMIN_BASIC_PASSWORD`: admin panel password.
 - `MINIAPP_SESSION_SECRET`: Mini App session signing secret, at least 16 characters.
+- `YOOKASSA_SHOP_ID`: the one direct YooKassa shop for the course and channel.
+- `YOOKASSA_SECRET_KEY`: API secret key for that shop.
+- `YOOKASSA_WEBHOOK_SECRET`: random path secret for YooKassa webhooks.
 
 Optional GitHub Actions secrets used in the generated production `.env`:
 
 - `TELEGRAM_BOT_USERNAME`
-- `TELEGRAM_PAYMENT_PROVIDER_TOKEN`: BotFather payment provider token for Telegram invoices.
 - `TELEGRAM_WEBHOOK_SECRET`: Telegram webhook secret token.
-- `YOOKASSA_SHOP_ID`
-- `YOOKASSA_SECRET_KEY`
-- `YOOKASSA_WEBHOOK_SECRET`
 - `YOOKASSA_CURRENCY`: defaults to `RUB`.
 - `MINIAPP_SESSION_TTL_SECONDS`: defaults to `1800`.
 - `KINESCOPE_API_TOKEN`

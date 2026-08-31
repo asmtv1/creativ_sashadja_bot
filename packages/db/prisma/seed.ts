@@ -38,6 +38,29 @@ async function main() {
       }
     });
   }
+
+  // Do not overwrite enabled or channel binding: both are deliberate deployment actions.
+  await prisma.channelProduct.upsert({
+    where: { slug: "creative-ideas" },
+    update: {
+      title: "Креатив идеи",
+      priceKopecks: 39_000,
+      currency: "RUB",
+      periodDays: 30,
+      renewalLeadMinutes: 240,
+      gracePeriodMinutes: 1_440
+    },
+    create: {
+      slug: "creative-ideas",
+      title: "Креатив идеи",
+      priceKopecks: 39_000,
+      currency: "RUB",
+      periodDays: 30,
+      renewalLeadMinutes: 240,
+      gracePeriodMinutes: 1_440,
+      enabled: false
+    }
+  });
 }
 
 main()

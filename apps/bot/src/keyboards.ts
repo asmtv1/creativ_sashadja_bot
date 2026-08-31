@@ -1,5 +1,3 @@
-import { LESSON_TITLE } from "./content";
-
 export function openCourseKeyboard(miniAppUrl: string) {
   return {
     reply_markup: {
@@ -11,23 +9,43 @@ export function openCourseKeyboard(miniAppUrl: string) {
 export function buyCourseKeyboard() {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: LESSON_TITLE, callback_data: "buy_course" }]]
+      inline_keyboard: [
+        [{ text: "Смотреть урок", callback_data: "buy_course" }],
+        [{ text: "Попасть в канал с идеями", callback_data: "channel_subscription" }]
+      ]
     }
   };
 }
 
-export function screenshotPaymentKeyboard() {
+export function channelTermsKeyboard(publicBaseUrl: string) {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: "Оплатить", callback_data: "payment_setup_pending" }]]
+      inline_keyboard: [
+        [
+          { text: "Публичная оферта", url: new URL("/legal/offer", publicBaseUrl).href },
+          { text: "Конфиденциальность", url: new URL("/legal/privacy", publicBaseUrl).href }
+        ],
+        [{ text: "Принимаю условия и перейти к оплате", callback_data: "channel_checkout" }]
+      ]
+    }
+  };
+}
+export function paymentUrlKeyboard(url: string) { return { reply_markup: { inline_keyboard: [[{ text: "Оплатить через СБП", url }]] } }; }
+export function subscriptionKeyboard(autoRenew: boolean) {
+  if (!autoRenew) {
+    return undefined;
+  }
+  return {
+    reply_markup: {
+      inline_keyboard: [[{ text: "Остановить продление", callback_data: "channel_cancel_confirm" }]]
     }
   };
 }
 
-export function paymentKeyboard(invoiceUrl: string) {
+export function paymentKeyboard(paymentUrl: string) {
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: "Оплатить", url: invoiceUrl }]]
+      inline_keyboard: [[{ text: "Оплатить через СБП", url: paymentUrl }]]
     }
   };
 }

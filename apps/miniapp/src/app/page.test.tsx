@@ -3,13 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   authenticateTelegram: vi.fn(),
-  createCourseInvoice: vi.fn(),
-  getMyCourse: vi.fn()
+  createCourseCheckout: vi.fn(),
+  getMyCourse: vi.fn(),
+  verifyCourseCheckout: vi.fn()
 }));
 
 const telegram = vi.hoisted(() => ({
   getTelegramInitData: vi.fn(),
-  openTelegramInvoice: vi.fn(),
+  openExternalUrl: vi.fn(),
   prepareTelegramWebApp: vi.fn()
 }));
 
@@ -34,14 +35,13 @@ afterEach(() => {
 });
 
 describe("HomePage checkout", () => {
-  it("prepares an invoice and opens Telegram checkout without closing the Mini App", async () => {
+  it("prepares a direct YooKassa checkout and opens its confirmation URL", async () => {
     telegram.getTelegramInitData.mockReturnValue("signed-init-data");
-    telegram.openTelegramInvoice.mockResolvedValue("cancelled");
     api.authenticateTelegram.mockResolvedValue({ token: "session" });
     api.getMyCourse.mockResolvedValue(lockedCourse);
-    api.createCourseInvoice.mockResolvedValue({
+    api.createCourseCheckout.mockResolvedValue({
       orderId: "order_1",
-      invoiceUrl: "https://t.me/$invoice"
+      paymentUrl: "https://yookassa.example/confirm"
     });
 
     render(<HomePage />);
@@ -51,8 +51,8 @@ describe("HomePage checkout", () => {
     fireEvent.click(payButton);
 
     await waitFor(() => {
-      expect(telegram.openTelegramInvoice).toHaveBeenCalledWith("https://t.me/$invoice");
+      expect(telegram.openExternalUrl).toHaveBeenCalledWith("https://yookassa.example/confirm");
     });
-    expect(api.createCourseInvoice).toHaveBeenCalledWith("basic-course");
+    expect(api.createCourseCheckout).toHaveBeenCalledWith("basic-course");
   });
 });

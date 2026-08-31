@@ -1,7 +1,7 @@
 import {
   CourseAccessResponse,
-  CreateInvoiceResponse,
-  CreateInvoiceResponseSchema,
+  CreateCourseCheckoutResponse,
+  CreateCourseCheckoutResponseSchema,
   TelegramAuthResponse,
   TelegramAuthResponseSchema
 } from "@course/shared";
@@ -23,12 +23,18 @@ export async function getMyCourse(): Promise<CourseAccessResponse> {
   return requestWithSession("/api/me/course");
 }
 
-export async function createCourseInvoice(courseSlug: string): Promise<CreateInvoiceResponse> {
-  const payload = await requestWithSession("/api/orders/invoice", {
+export async function createCourseCheckout(courseSlug: string): Promise<CreateCourseCheckoutResponse> {
+  const payload = await requestWithSession("/api/orders/checkout", {
     method: "POST",
     body: { courseSlug }
   });
-  return CreateInvoiceResponseSchema.parse(payload);
+  return CreateCourseCheckoutResponseSchema.parse(payload);
+}
+
+export async function verifyCourseCheckout(orderId: string) {
+  return requestWithSession(`/api/orders/${encodeURIComponent(orderId)}/verify`, {
+    method: "POST"
+  });
 }
 
 async function requestWithSession(path: string, init: { method?: string; body?: unknown } = {}) {

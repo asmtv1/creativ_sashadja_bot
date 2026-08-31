@@ -51,6 +51,46 @@ enum WebhookStatus {
   FAILED
 }
 
+enum ChannelSubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELED_AT_PERIOD_END
+  EXPIRED
+  REFUNDED
+}
+
+enum ChannelPaymentKind {
+  INITIAL
+  RENEWAL
+  MANUAL_RENEWAL
+}
+
+enum ChannelPaymentStatus {
+  PENDING
+  SUCCEEDED
+  CANCELED
+  FAILED
+  REFUNDED
+}
+
+enum ReceiptOperationType {
+  ISSUE
+  CANCEL
+}
+
+enum ReceiptOperationStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum ChannelMembershipSource {
+  MANAGED
+  MANUAL
+  EXEMPT
+}
+
 model TelegramUser {
   id           String         @id @default(uuid()) @db.Uuid
   telegramId   String         @unique
@@ -62,6 +102,118 @@ model TelegramUser {
   updatedAt    DateTime       @updatedAt
   orders       Order[]
   access       CourseAccess[]
+  channelSubscriptions ChannelSubscription[]
+}
+
+model ChannelProduct {
+  id                 String                @id @default(uuid()) @db.Uuid
+  slug               String                @unique
+  title              String
+  priceKopecks       Int
+  currency           String                @default("RUB")
+  periodDays         Int                   @default(30)
+  renewalLeadMinutes Int                   @default(240)
+  gracePeriodMinutes Int                   @default(1440)
+  enabled            Boolean               @default(false)
+  telegramChatId     String?
+  telegramChatTitle  String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  subscriptions      ChannelSubscription[]
+}
+
+model ChannelSubscription {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  userId             String                    @db.Uuid
+  productId          String                    @db.Uuid
+  status             ChannelSubscriptionStatus @default(PENDING)
+  autoRenew          Boolean                   @default(true)
+  paymentMethodId    String?
+  periodStart        DateTime?
+  periodEnd          DateTime?
+  nextChargeAt       DateTime?
+  nextAttemptAt      DateTime?
+  attemptCount       Int                       @default(0)
+  reminderSentForEnd DateTime?
+  termsVersion       String?
+  termsAcceptedAt    DateTime?
+  cancelRequestedAt  DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  user               TelegramUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product            ChannelProduct            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  payments           ChannelPayment[]
+  invites            ChannelInvite[]
+  membership         ChannelMembership?
+
+  @@unique([userId, productId])
+  @@index([nextChargeAt])
+  @@index([nextAttemptAt])
+  @@index([periodEnd])
+}
+
+model ChannelPayment {
+  id                String               @id @default(uuid()) @db.Uuid
+  subscriptionId    String               @db.Uuid
+  kind              ChannelPaymentKind
+  status            ChannelPaymentStatus @default(PENDING)
+  amountKopecks     Int
+  currency          String
+  providerPaymentId String?              @unique
+  idempotenceKey    String               @unique
+  confirmationUrl   String?
+  failureCode       String?
+  providerPayload   Json?
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  subscription      ChannelSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  receipts          ReceiptOperation[]
+
+  @@index([subscriptionId, status])
+}
+
+model ChannelInvite {
+  id             String              @id @default(uuid()) @db.Uuid
+  subscriptionId String              @db.Uuid
+  inviteLink     String              @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime            @default(now())
+  subscription   ChannelSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, expiresAt])
+}
+
+model ChannelMembership {
+  id             String                  @id @default(uuid()) @db.Uuid
+  subscriptionId String                  @unique @db.Uuid
+  source         ChannelMembershipSource
+  joinedAt       DateTime?
+  removedAt      DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  subscription   ChannelSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model ReceiptOperation {
+  id              String                 @id @default(uuid()) @db.Uuid
+  paymentId       String                 @db.Uuid
+  type            ReceiptOperationType
+  status          ReceiptOperationStatus @default(PENDING)
+  externalId      String?
+  receiptUrl      String?
+  attempts        Int                    @default(0)
+  nextAttemptAt   DateTime               @default(now())
+  lastError       String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  payment         ChannelPayment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, type])
+  @@index([status, nextAttemptAt])
 }
 
 model Course {

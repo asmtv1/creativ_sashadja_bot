@@ -1,69 +1,40 @@
 import { InputFile } from "grammy";
-import { openCourseKeyboard, paymentKeyboard, screenshotPaymentKeyboard } from "../keyboards";
-import {
-  BotApi,
-  BotHandlerContext,
-  BotPreCheckoutContext,
-  BotSuccessfulPaymentContext
-} from "../types";
-import {
-  LESSON_PAYMENT_MESSAGE,
-  LESSON_PREVIEW_VIDEO_PATH,
-  LESSON_TITLE,
-  PAYMENT_SUCCESS_MESSAGE
-} from "../content";
+import { openCourseKeyboard, paymentKeyboard } from "../keyboards";
+import { BotApi, BotHandlerContext } from "../types";
+import { LESSON_PAYMENT_MESSAGE, LESSON_PREVIEW_VIDEO_PATH } from "../content";
 
 export async function handleBuyCourse(
   ctx: BotHandlerContext,
-  deps: { api: Pick<BotApi, "createOrder">; paymentProviderToken?: string }
+  deps: { api: Pick<BotApi, "createCourseCheckout" | "getCourseAccess">; miniAppUrl: string }
 ) {
   const telegramId = requireTelegramId(ctx);
-  if (!deps.paymentProviderToken) {
-    await sendLessonPaymentPost(ctx, screenshotPaymentKeyboard());
+  const access = await deps.api.getCourseAccess(telegramId).catch(() => ({ hasAccess: false }));
+  if (access.hasAccess) {
+    await ctx.reply("Доступ уже открыт. Можно переходить к курсу.", {
+      ...openCourseKeyboard(deps.miniAppUrl)
+    });
     return;
   }
-  if (!ctx.api?.createInvoiceLink) {
-    throw new Error("Telegram createInvoiceLink API is missing from bot context");
-  }
 
-  const order = await deps.api.createOrder(telegramId).catch((error: unknown) => {
-    console.error("Bot buy_course API call failed", error instanceof Error ? error.message : error);
+  const checkout = await deps.api.createCourseCheckout(telegramId).catch((error: unknown) => {
+    console.error(
+      "Bot course checkout API call failed",
+      error instanceof Error ? error.message : error
+    );
     return null;
   });
-
-  if (!order) {
+  if (!checkout) {
     await ctx.reply("Сервис временно недоступен. Попробуйте ещё раз через минуту.");
     return;
   }
-
-  if ("alreadyPaid" in order) {
-    await ctx.reply("Доступ уже открыт. Можно переходить к курсу.");
-    return;
-  }
-
-  const invoiceUrl = await ctx.api
-    .createInvoiceLink(
-      order.title,
-      order.description,
-      order.invoicePayload,
-      deps.paymentProviderToken,
-      order.currency,
-      [{ label: LESSON_TITLE, amount: order.amountKopecks }]
-    )
-    .catch((error: unknown) => {
-      console.error(
-        "Telegram createInvoiceLink failed",
-        error instanceof Error ? error.message : error
-      );
-      return null;
+  if ("alreadyPaid" in checkout) {
+    await ctx.reply("Доступ уже открыт. Можно переходить к курсу.", {
+      ...openCourseKeyboard(deps.miniAppUrl)
     });
-
-  if (!invoiceUrl) {
-    await ctx.reply("Не удалось подготовить оплату. Попробуйте ещё раз через минуту.");
     return;
   }
 
-  await sendLessonPaymentPost(ctx, paymentKeyboard(invoiceUrl));
+  await sendLessonPaymentPost(ctx, paymentKeyboard(checkout.paymentUrl));
 }
 
 async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) {
@@ -80,59 +51,6 @@ async function sendLessonPaymentPost(ctx: BotHandlerContext, options?: unknown) 
   }
 
   await ctx.reply(LESSON_PAYMENT_MESSAGE, options);
-}
-
-export async function handlePreCheckout(
-  ctx: BotPreCheckoutContext,
-  deps: { api: Pick<BotApi, "validateTelegramInvoice"> }
-) {
-  const query = ctx.preCheckoutQuery;
-  if (!query) {
-    return;
-  }
-
-  const result = await deps.api.validateTelegramInvoice({
-    orderId: query.invoice_payload,
-    telegramId: String(query.from.id),
-    amountKopecks: query.total_amount,
-    currency: query.currency
-  });
-
-  if (result.ok) {
-    await ctx.answerPreCheckoutQuery(true);
-    return;
-  }
-
-  await ctx.answerPreCheckoutQuery(false, {
-    error_message: result.errorMessage ?? "Не удалось подтвердить заказ"
-  });
-}
-
-export async function handleSuccessfulPayment(
-  ctx: BotSuccessfulPaymentContext,
-  deps: { api: Pick<BotApi, "completeTelegramPayment">; miniAppUrl: string }
-) {
-  const telegramId = requireTelegramId(ctx);
-  const payment = ctx.message?.successful_payment;
-  if (!payment) {
-    return;
-  }
-
-  const result = await deps.api.completeTelegramPayment({
-    orderId: payment.invoice_payload,
-    telegramId,
-    providerPaymentChargeId: payment.provider_payment_charge_id,
-    telegramPaymentChargeId: payment.telegram_payment_charge_id,
-    amountKopecks: payment.total_amount,
-    currency: payment.currency,
-    rawPayload: payment
-  });
-
-  if (result.paid) {
-    await ctx.reply(PAYMENT_SUCCESS_MESSAGE, {
-      ...openCourseKeyboard(deps.miniAppUrl)
-    });
-  }
 }
 
 function requireTelegramId(ctx: BotHandlerContext): string {

@@ -6,8 +6,13 @@ import { CourseLessons } from "../components/CourseLessons";
 import { CourseLocked } from "../components/CourseLocked";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
-import { authenticateTelegram, createCourseInvoice, getMyCourse } from "../lib/api-client";
-import { getTelegramInitData, openTelegramInvoice, prepareTelegramWebApp } from "../lib/telegram";
+import {
+  authenticateTelegram,
+  createCourseCheckout,
+  getMyCourse,
+  verifyCourseCheckout
+} from "../lib/api-client";
+import { getTelegramInitData, openExternalUrl, prepareTelegramWebApp } from "../lib/telegram";
 
 type ScreenState =
   | { kind: "loading" }
@@ -17,9 +22,9 @@ type ScreenState =
 type CheckoutState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "ready"; invoiceUrl: string }
-  | { kind: "processing"; invoiceUrl: string }
-  | { kind: "checking"; invoiceUrl: string; message: string }
+  | { kind: "ready"; orderId: string; paymentUrl: string }
+  | { kind: "processing"; orderId: string; paymentUrl: string }
+  | { kind: "checking"; orderId: string; paymentUrl: string; message: string }
   | { kind: "error"; message: string };
 
 export default function HomePage() {
@@ -29,13 +34,17 @@ export default function HomePage() {
   const prepareCheckout = useCallback(async (courseSlug: string) => {
     setCheckout({ kind: "loading" });
     try {
-      const invoice = await createCourseInvoice(courseSlug);
-      if ("alreadyPaid" in invoice) {
+      const checkout = await createCourseCheckout(courseSlug);
+      if ("alreadyPaid" in checkout) {
         setState({ kind: "course", data: await getMyCourse() });
         setCheckout({ kind: "idle" });
         return;
       }
-      setCheckout({ kind: "ready", invoiceUrl: invoice.invoiceUrl });
+      setCheckout({
+        kind: "ready",
+        orderId: checkout.orderId,
+        paymentUrl: checkout.paymentUrl
+      });
     } catch (error) {
       setCheckout({
         kind: "error",
@@ -68,8 +77,9 @@ export default function HomePage() {
     });
   }, [prepareCheckout]);
 
-  async function checkCourseAccess(invoiceUrl: string) {
-    setCheckout({ kind: "processing", invoiceUrl });
+  async function checkCourseAccess(orderId: string, paymentUrl: string) {
+    setCheckout({ kind: "processing", orderId, paymentUrl });
+    await verifyCourseCheckout(orderId);
     const updated = await pollCourseAccess();
     setState({ kind: "course", data: updated });
     if (updated.hasAccess) {
@@ -78,7 +88,8 @@ export default function HomePage() {
     }
     setCheckout({
       kind: "checking",
-      invoiceUrl,
+      orderId,
+      paymentUrl,
       message: "Платёж ещё обрабатывается. Подожди немного и проверь доступ ещё раз."
     });
   }
@@ -89,24 +100,21 @@ export default function HomePage() {
       return;
     }
     if (checkout.kind === "checking") {
-      await checkCourseAccess(checkout.invoiceUrl);
+      await checkCourseAccess(checkout.orderId, checkout.paymentUrl);
       return;
     }
     if (checkout.kind !== "ready") {
       return;
     }
 
-    const invoiceUrl = checkout.invoiceUrl;
     try {
-      const status = await openTelegramInvoice(invoiceUrl);
-      if (status === "cancelled") {
-        return;
-      }
-      if (status === "failed") {
-        setCheckout({ kind: "error", message: "Платёж не прошёл. Попробуй ещё раз." });
-        return;
-      }
-      await checkCourseAccess(invoiceUrl);
+      openExternalUrl(checkout.paymentUrl);
+      setCheckout({
+        kind: "checking",
+        orderId: checkout.orderId,
+        paymentUrl: checkout.paymentUrl,
+        message: "После оплаты вернитесь в бот и нажмите «Проверить доступ»."
+      });
     } catch (error) {
       setCheckout({
         kind: "error",

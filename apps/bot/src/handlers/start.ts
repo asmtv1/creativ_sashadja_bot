@@ -1,16 +1,15 @@
 import { InputFile } from "grammy";
-import { buyCourseKeyboard, openCourseKeyboard } from "../keyboards";
+import { buyCourseKeyboard } from "../keyboards";
 import { START_MESSAGE, WELCOME_IMAGE_PATH } from "../content";
 import { BotApi, BotHandlerContext } from "../types";
 
 export async function handleStart(
   ctx: BotHandlerContext,
-  deps: { api: Pick<BotApi, "upsertBotUser" | "getCourseAccess">; miniAppUrl: string }
+  deps: { api: Pick<BotApi, "upsertBotUser">; miniAppUrl: string }
 ) {
   const from = requireTelegramUser(ctx);
   const telegramId = String(from.id);
 
-  let access = { hasAccess: false };
   try {
     await deps.api.upsertBotUser({
       telegramId,
@@ -19,19 +18,11 @@ export async function handleStart(
       lastName: from.last_name ?? null,
       languageCode: from.language_code ?? null
     });
-    access = await deps.api.getCourseAccess(telegramId);
   } catch (error) {
     console.warn(
       "Bot /start API call failed",
       error instanceof Error ? error.message : "Unknown API error"
     );
-  }
-
-  if (access.hasAccess) {
-    await ctx.reply("Доступ открыт. Нажмите «Открыть курс», чтобы перейти к урокам.", {
-      ...openCourseKeyboard(deps.miniAppUrl)
-    });
-    return;
   }
 
   if (ctx.replyWithPhoto) {
