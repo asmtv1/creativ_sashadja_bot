@@ -9,6 +9,7 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 ENV DATABASE_URL=postgresql://course:course@postgres:5432/course?schema=public
 RUN pnpm db:generate
+RUN pnpm --filter @course/npd build
 RUN pnpm --filter @course/api build
 RUN PRISMA_DIR="$(find node_modules/.pnpm -maxdepth 1 -type d -name '@prisma+client@*' | head -1)" && \
     mkdir -p /prisma-artifacts && \
@@ -21,6 +22,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/db ./packages/db
 COPY packages/shared ./packages/shared
+COPY --from=build /app/packages/npd ./packages/npd
 COPY apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 RUN pnpm install --frozen-lockfile --prod --filter @course/api...
