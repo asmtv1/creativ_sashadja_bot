@@ -113,6 +113,10 @@ jobs:
           SELF_EMPLOYED_SELLER_NAME: ${{ secrets.SELF_EMPLOYED_SELLER_NAME }}
           SELF_EMPLOYED_INN: ${{ secrets.SELF_EMPLOYED_INN }}
           SELF_EMPLOYED_CONTACT: ${{ secrets.SELF_EMPLOYED_CONTACT }}
+          NPD_PROCESSING_ENABLED: ${{ secrets.NPD_PROCESSING_ENABLED }}
+          NPD_TOKEN_ENCRYPTION_KEY: ${{ secrets.NPD_TOKEN_ENCRYPTION_KEY }}
+          NPD_BATCH_SIZE: ${{ secrets.NPD_BATCH_SIZE }}
+          NPD_REQUEST_TIMEOUT_MS: ${{ secrets.NPD_REQUEST_TIMEOUT_MS }}
           CHANNEL_SUBSCRIPTION_TERMS_VERSION: ${{ secrets.CHANNEL_SUBSCRIPTION_TERMS_VERSION }}
           MINIAPP_SESSION_SECRET: ${{ secrets.MINIAPP_SESSION_SECRET }}
           MINIAPP_SESSION_TTL_SECONDS: ${{ secrets.MINIAPP_SESSION_TTL_SECONDS }}
@@ -181,6 +185,12 @@ jobs:
             line("SELF_EMPLOYED_SELLER_NAME", env.SELF_EMPLOYED_SELLER_NAME),
             line("SELF_EMPLOYED_INN", env.SELF_EMPLOYED_INN),
             line("SELF_EMPLOYED_CONTACT", env.SELF_EMPLOYED_CONTACT),
+            // NPD remains explicitly disabled until the encrypted connection and
+            // cutover are complete. The key is needed only for bootstrap/processing.
+            line("NPD_PROCESSING_ENABLED", env.NPD_PROCESSING_ENABLED || "false"),
+            line("NPD_TOKEN_ENCRYPTION_KEY", env.NPD_TOKEN_ENCRYPTION_KEY),
+            line("NPD_BATCH_SIZE", env.NPD_BATCH_SIZE || "20"),
+            line("NPD_REQUEST_TIMEOUT_MS", env.NPD_REQUEST_TIMEOUT_MS || "10000"),
             line("CHANNEL_SUBSCRIPTION_TERMS_VERSION", env.CHANNEL_SUBSCRIPTION_TERMS_VERSION || "unpublished"),
             "",
             line("MINIAPP_SESSION_SECRET", env.MINIAPP_SESSION_SECRET),
