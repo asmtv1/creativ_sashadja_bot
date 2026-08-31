@@ -43,7 +43,7 @@ jobs:
           echo "--- NPD configuration presence ---"
           docker compose -p tgbot exec -T api node -e 'console.log(`NPD_TOKEN_ENCRYPTION_KEY=${process.env.NPD_TOKEN_ENCRYPTION_KEY ? "present" : "missing"}`); console.log(`NPD_PROCESSING_ENABLED=${process.env.NPD_PROCESSING_ENABLED}`)' < /dev/null
           echo "--- NPD connection state ---"
-          docker compose -p tgbot exec -T api node --input-type=module -e 'import { PrismaClient } from "@course/db"; const prisma = new PrismaClient(); const connection = await prisma.npdConnection.findUnique({ where: { id: "default" }, select: { status: true, fiscalizationStartedAt: true, lastAuthorizedAt: true, lastErrorCode: true } }); console.log(JSON.stringify(connection ?? { configured: false })); await prisma.$disconnect()' < /dev/null
+          docker compose -p tgbot exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "$1"' sh 'SELECT COALESCE((SELECT json_build_object('"'"'configured'"'"', true, '"'"'status'"'"', status::text, '"'"'fiscalizationStartedAt'"'"', "fiscalizationStartedAt", '"'"'lastAuthorizedAt'"'"', "lastAuthorizedAt", '"'"'lastErrorCode'"'"', "lastErrorCode")::text FROM "NpdConnection" WHERE id = '"'"'default'"'"'), '"'"'{"configured":false}'"'"')' < /dev/null
           echo "--- NPD network reachability ---"
           docker compose -p tgbot exec -T api node -e 'fetch("https://lknpd.nalog.ru/api/v1").then((response) => console.log(`NPD endpoint reachable: HTTP ${response.status}`)).catch((error) => { console.error(`NPD endpoint unreachable: ${error.name}`); process.exitCode = 1; })' < /dev/null
           REMOTE
