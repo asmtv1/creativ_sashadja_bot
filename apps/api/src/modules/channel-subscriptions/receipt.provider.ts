@@ -8,7 +8,7 @@ export interface SelfEmployedReceiptProvider {
   getOperationStatus(externalId: string): Promise<"PENDING" | "SUCCEEDED" | "FAILED">;
 }
 
-/** Safe default: no real checkout is possible until a verified provider is configured. */
+/** Temporary default: checkout is allowed, while receipt operations remain retryable until a provider is connected. */
 export class DisabledSelfEmployedReceiptProvider implements SelfEmployedReceiptProvider {
   async isReady() { return false; }
   async issueReceipt(): Promise<ReceiptResult> { throw new Error("Receipt provider is disabled"); }

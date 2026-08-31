@@ -12,16 +12,16 @@ TypeScript monorepo for a Telegram bot, NestJS API, Next.js Telegram Mini App, P
 
 Telegram platform note: digital goods sold inside Telegram apps may require Telegram Stars. YooKassa is isolated behind a provider-shaped boundary so a Stars provider can be added or swapped before public launch.
 
-## Channel subscription (disabled until release approval)
+## Channel subscription
 
 The `creative-ideas` product is separate from the course and starts disabled. Both it and the course use the same direct YooKassa API credentials and offer SBP only. The API requests `payment_method_data.type=sbp` for every first payment and accepts a saved method for renewal only when YooKassa confirms that it is also `sbp`. Telegram invoices and the BotFather payment-provider token are not used.
 
 An active channel subscriber can open `/subscription` or tap «Попасть в канал с идеями» in the bot to see a visible «Остановить продление» button. Confirmation stops future renewals, clears the saved payment-method identifier from this system, and attempts to cancel an already-pending renewal. Paid access remains available until its current period ends.
 
-Do not set `CHANNEL_SUBSCRIPTION_ENABLED=true` or enable the database product until all of these are complete:
+The production checkout can be controlled independently with `CHANNEL_SUBSCRIPTION_ENABLED` and the database product's `enabled` field. Before the final commercial launch, complete all of these:
 
 1. YooKassa has approved recurring SBP payments for this shop.
-2. A real `SelfEmployedReceiptProvider` has been selected and tested for both issuing and cancelling receipts. The committed default is deliberately `disabled` and blocks checkout.
+2. A real `SelfEmployedReceiptProvider` has been selected and tested for both issuing and cancelling receipts. Temporarily, checkout does not wait for this provider: receipt operations are persisted and remain failed/retryable until it is connected.
 3. Seller legal name, INN, contact and approved terms version are provided.
 4. The bot is made an administrator in the channel and `/bind_channel <CHANNEL_BIND_SECRET>` is sent as a channel post; the bot deletes that message after binding.
 5. The owner manually revokes the old shared channel link, then performs a real initial payment and a real refund smoke test.

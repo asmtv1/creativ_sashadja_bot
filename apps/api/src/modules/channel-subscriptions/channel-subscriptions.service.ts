@@ -17,7 +17,7 @@ export class ChannelSubscriptionsService {
   async createCheckout(telegramId: string, termsAccepted: boolean) {
     if (!termsAccepted) throw new BadRequestException("Terms acceptance is required");
     const product = await this.productOrThrow();
-    if (process.env.CHANNEL_SUBSCRIPTION_ENABLED !== "true" || !product.enabled || !(await this.receipts.isReady())) throw new ServiceUnavailableException("Channel subscription is not available yet");
+    if (process.env.CHANNEL_SUBSCRIPTION_ENABLED !== "true" || !product.enabled) throw new ServiceUnavailableException("Channel subscription is not available yet");
     const user = await this.users.findByTelegramId(telegramId);
     if (!user) throw new NotFoundException("Telegram user not found");
     const subscription = await this.prisma.channelSubscription.upsert({
