@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { decryptRefreshToken, encryptRefreshToken, NpdGateway, NpdGatewayError } from "@course/npd";
+import { decryptRefreshToken, encryptRefreshToken, formatNpdFailure, NpdGateway, NpdGatewayError } from "@course/npd";
 import { PrismaService } from "../prisma/prisma.service";
 
 const LEASE_MS = 90_000;
@@ -68,7 +68,7 @@ export class NpdReceiptsService implements OnModuleInit, OnModuleDestroy {
   private async processOne(operation: any, owner: string) {
     try {
       const gateway = await this.gatewayFor(operation.receipt.connection);
-      const issued = await gateway.createReceipt({ inn: operation.receipt.connection.inn, operationAt: operation.receipt.operationAt, paymentType: "ACCOUNT", services: [{ name: operation.receipt.serviceName, amount: rubles(operation.receipt.amountKopecks), quantity: 1 }] });
+      const issued = await gateway.createReceipt({ inn: operation.receipt.connection.inn, operationAt: operation.receipt.operationAt, paymentType: "WIRE", services: [{ name: operation.receipt.serviceName, amount: rubles(operation.receipt.amountKopecks), quantity: 1 }] });
       await this.persistIssued(operation, owner, issued);
     } catch (error) {
       const npdError = error instanceof NpdGatewayError ? error : new NpdGatewayError("UNAVAILABLE", "NPD operation failed");
@@ -88,7 +88,7 @@ export class NpdReceiptsService implements OnModuleInit, OnModuleDestroy {
         await this.finish(operation.id, owner, { status: "RETRY", nextAttemptAt: retryAt(operation.attemptCount), lastErrorCode: npdError.code, lastErrorRedacted: "NPD temporary failure" });
         return;
       }
-      await this.finish(operation.id, owner, { status: "FAILED", completedAt: new Date(), lastErrorCode: npdError.code, lastErrorRedacted: "NPD receipt issue failed" });
+      await this.finish(operation.id, owner, { status: "FAILED", completedAt: new Date(), lastErrorCode: npdError.code, lastErrorRedacted: formatNpdFailure(npdError) });
       await this.prisma.npdReceipt.update({ where: { id: operation.receiptId }, data: { status: "FAILED" } });
     }
   }
