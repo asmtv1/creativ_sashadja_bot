@@ -24,13 +24,25 @@ const activeStatus = {
 describe("channel subscription controls", () => {
   it("shows the offer and privacy policy before checkout", async () => {
     const ctx = createContext();
+    const replyWithVideo = vi.fn(async (_video: unknown, _options?: unknown) => {});
     await handleChannelEntry(
-      ctx as any,
+      { ...ctx, replyWithVideo } as any,
       { getChannelSubscription: vi.fn(async () => ({ ...activeStatus, activeUntil: null })) },
       "https://course.example.com"
     );
 
-    expect(ctx.replies.at(-1)?.options).toMatchObject({
+    expect(ctx.reply).not.toHaveBeenCalled();
+    expect(replyWithVideo).toHaveBeenCalledTimes(1);
+    const options = replyWithVideo.mock.calls[0]?.[1] as { caption: string };
+    expect(options.caption).toContain("<b>Канал с креативными идеями</b>");
+    expect(options.caption).toContain("<b>390 ₽ за 30 дней</b>");
+    expect(options.caption).toContain("Автопродление включено по умолчанию");
+    expect(options.caption).not.toContain("Первый платёж");
+    expect(options.caption).not.toContain("Канал «Креатив идеи» —");
+    expect(options.caption.replace(/<[^>]+>/g, "").length).toBeLessThanOrEqual(1024);
+    expect(options).toMatchObject({
+      parse_mode: "HTML",
+      supports_streaming: true,
       reply_markup: {
         inline_keyboard: [
           [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }],

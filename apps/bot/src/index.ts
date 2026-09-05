@@ -18,7 +18,7 @@ const bot = createCourseBot({
   miniAppUrl: config.PUBLIC_BASE_URL
 });
 
-await syncBotMenuButton(bot.api, config.PUBLIC_BASE_URL);
+await syncBotMenuButton(bot.api);
 startOutboxWorker(api, bot.api);
 
 if (config.BOT_MODE === "webhook") {

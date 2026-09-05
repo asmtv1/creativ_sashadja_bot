@@ -1,11 +1,17 @@
 import { formatRubles } from "@course/shared";
+import { InputFile } from "grammy";
+import { CHANNEL_PREVIEW_VIDEO_PATH } from "../content";
 import { channelTermsKeyboard, paymentUrlKeyboard, subscriptionKeyboard } from "../keyboards";
 import { BotApi, BotHandlerContext } from "../types";
 
 const CHANNEL_OFFER = [
-  "Канал «Креатив идеи» — 390 ₽ за 30 суток.",
+  "<b>Канал с креативными идеями</b>",
+  "Я собираю сюда идеи для контента, тренды, механики и референсы, которые можно адаптировать под разные ниши.",
   "",
-  "Первый платёж и каждое продление выполняются только через СБП.",
+  "Чтобы не сидеть часами в поисках — просто заходишь в канал и выбираешь из уже собранных идей.",
+  "",
+  "<b>390 ₽ за 30 дней</b>",
+  "",
   "Автопродление включено по умолчанию: мы попробуем списать 390 ₽ за 4 часа до окончания периода. Его можно остановить в любой момент — мы удалим сохранённый способ оплаты из нашей системы, а доступ сохранится до конца оплаченного срока.",
   "",
   "До оплаты ознакомьтесь с офертой и политикой конфиденциальности. Нажатие кнопки ниже подтверждает принятие условий."
@@ -21,7 +27,18 @@ export async function handleChannelEntry(
     await sendSubscriptionStatus(ctx, status);
     return;
   }
-  await ctx.reply(CHANNEL_OFFER, channelTermsKeyboard(publicBaseUrl));
+  const options = { ...channelTermsKeyboard(publicBaseUrl), parse_mode: "HTML" };
+  if (ctx.replyWithVideo) {
+    await ctx.replyWithVideo(new InputFile(CHANNEL_PREVIEW_VIDEO_PATH), {
+      ...options,
+      caption: CHANNEL_OFFER,
+      width: 1080,
+      height: 1440,
+      supports_streaming: true
+    });
+    return;
+  }
+  await ctx.reply(CHANNEL_OFFER, options);
 }
 
 export async function handleChannelCheckout(

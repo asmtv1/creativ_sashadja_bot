@@ -2,16 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 import { syncBotMenuButton } from "./menu-button";
 
 describe("syncBotMenuButton", () => {
-  it("points the persistent Telegram menu button at the production Mini App", async () => {
+  it("replaces the course shortcut with commands for both products and support", async () => {
     const setChatMenuButton = vi.fn().mockResolvedValue(true);
+    const setMyCommands = vi.fn().mockResolvedValue(true);
 
-    await syncBotMenuButton({ setChatMenuButton } as never, "https://sasha.gafus.ru");
+    await syncBotMenuButton({ setChatMenuButton, setMyCommands } as never);
 
+    expect(setMyCommands).toHaveBeenCalledWith([
+        { command: "start", description: "Урок и канал с идеями" },
+        { command: "subscription", description: "Моя подписка на канал" },
+        { command: "support", description: "Поддержка" },
+        { command: "paysupport", description: "Помощь с оплатой" },
+        { command: "terms", description: "Публичная оферта" },
+        { command: "privacy", description: "Конфиденциальность" }
+    ]);
     expect(setChatMenuButton).toHaveBeenCalledWith({
       menu_button: {
-        type: "web_app",
-        text: "Открыть курс",
-        web_app: { url: "https://sasha.gafus.ru" }
+        type: "commands"
       }
     });
   });
