@@ -35,6 +35,11 @@ export async function runOutboxBatch(deps: {
 }
 
 function messageForOutboxItem(item: BotOutboxItem): string {
+  if (item.type === "CHANNEL_INVITE") {
+    const payload = item.payload as { title?: string; inviteLink?: string };
+    if (!payload?.inviteLink?.startsWith("https://t.me/")) throw new Error("Invalid channel invite payload");
+    return `Оплата прошла! Доступ к каналу «${payload.title ?? "Креатив идеи"}» открыт. Вступите по одноразовой ссылке: ${payload.inviteLink}`;
+  }
   if (item.type === "PAYMENT_SUCCEEDED") {
     return PAYMENT_SUCCESS_MESSAGE;
   }

@@ -15,6 +15,7 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
       currency: "RUB",
       periodDays: 30,
       renewalLeadMinutes: 240,
+      telegramChatId: "-100123",
       enabled: true
     };
     const subscription = {
@@ -56,7 +57,8 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
           confirmation: { confirmation_url: "https://yookassa.example/checkout" }
         }))
       } as any,
-      { queueChannelReceipt: vi.fn() } as any
+      { queueChannelReceipt: vi.fn() } as any,
+      { queueInvite: vi.fn() } as any
     );
 
     try {
@@ -104,7 +106,8 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
           cancellation_details: { reason: "canceled_by_merchant" }
         }))
       } as any,
-      { queueChannelReceipt: vi.fn() } as any
+      { queueChannelReceipt: vi.fn() } as any,
+      { queueInvite: vi.fn() } as any
     );
 
     await service.stopAutoRenew("42");
@@ -125,5 +128,39 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
         data: expect.objectContaining({ status: "CANCELED" })
       })
     );
+  });
+});
+
+describe("Channel payment callbacks", () => {
+  it("does not extend the subscription again and retries delivery even when receipt processing fails", async () => {
+    const paidAt = new Date("2026-09-01T00:00:00Z");
+    const payment = {
+      id: "payment", status: "SUCCEEDED", kind: "INITIAL", amountKopecks: 39000, currency: "RUB", paidAt,
+      subscription: { id: "sub", userId: "user", product: { title: "Креатив идеи", periodDays: 30 } },
+    };
+    const tx = {
+      $queryRaw: vi.fn(),
+      channelPayment: { findUniqueOrThrow: vi.fn(async () => payment), update: vi.fn() },
+      channelSubscription: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn) => fn(tx)),
+      channelPayment: { findUnique: vi.fn(async () => payment), findUniqueOrThrow: vi.fn(async () => payment) },
+      telegramUser: { findUnique: vi.fn(async () => ({ telegramId: "42" })) },
+    };
+    const invites = { queueInvite: vi.fn(async () => undefined) };
+    const receipts = { queueChannelReceipt: vi.fn(async () => { throw new Error("receipt unavailable"); }) };
+    const remote = { status: "succeeded", paid: true, amount: { value: "390.00", currency: "RUB" }, metadata: { kind: "channel_subscription", paymentId: "payment" }, payment_method: { type: "sbp", id: "method", saved: true } };
+    const service = new ChannelSubscriptionsService(prisma as any, {} as any, { getPayment: vi.fn(async () => remote) } as any, receipts as any, invites as any);
+    await expect(service.handleWebhook("provider")).rejects.toThrow("receipt unavailable");
+    expect(tx.channelSubscription.update).not.toHaveBeenCalled();
+    expect(tx.channelPayment.update).not.toHaveBeenCalled();
+    expect(invites.queueInvite).toHaveBeenCalledWith("payment");
+    expect(receipts.queueChannelReceipt).toHaveBeenCalledWith(expect.objectContaining({ paidAt }));
+  });
+
+  it("refuses checkout when the channel has not been bound", async () => {
+    const service = new ChannelSubscriptionsService({ channelProduct: { findUnique: vi.fn(async () => ({ telegramChatId: null })) } } as any, {} as any, {} as any, {} as any, {} as any);
+    await expect(service.createCheckout("42", true)).rejects.toThrow("not bound");
   });
 });

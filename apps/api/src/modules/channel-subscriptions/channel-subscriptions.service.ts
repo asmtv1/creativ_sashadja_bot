@@ -1,5 +1,6 @@
+import { ChannelInvitesService } from "./channel-invites.service";
 import { randomUUID } from "node:crypto";
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "@course/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
@@ -11,11 +12,13 @@ const RETRY_OFFSETS_MINUTES = [0, 60, 240, 600, 1680]; // T-4h, T-3h, T, T+6h, T
 
 @Injectable()
 export class ChannelSubscriptionsService {
-  constructor(private readonly prisma: PrismaService, private readonly users: UsersService, private readonly yookassa: YooKassaClient, private readonly npdReceipts: NpdReceiptsService) {}
+  private readonly logger = new Logger(ChannelSubscriptionsService.name);
+  constructor(private readonly prisma: PrismaService, private readonly users: UsersService, private readonly yookassa: YooKassaClient, private readonly npdReceipts: NpdReceiptsService, private readonly invites: ChannelInvitesService) {}
 
   async createCheckout(telegramId: string, termsAccepted: boolean) {
     if (!termsAccepted) throw new BadRequestException("Terms acceptance is required");
     const product = await this.productOrThrow();
+    if (!product.telegramChatId) throw new ServiceUnavailableException("Channel is not bound to the bot yet");
     if (process.env.CHANNEL_SUBSCRIPTION_ENABLED !== "true" || !product.enabled) throw new ServiceUnavailableException("Channel subscription is not available yet");
     const user = await this.users.findByTelegramId(telegramId);
     if (!user) throw new NotFoundException("Telegram user not found");
@@ -114,14 +117,24 @@ export class ChannelSubscriptionsService {
     if (remote.amount.value !== `${Math.floor(payment.amountKopecks / 100)}.${String(payment.amountKopecks % 100).padStart(2, "0")}` || remote.amount.currency !== payment.currency || remote.metadata?.kind !== "channel_subscription" || remote.metadata?.paymentId !== payment.id) throw new ForbiddenException("Payment verification failed");
     if (remote.status === "canceled") { await this.prisma.channelPayment.update({ where: { id: payment.id }, data: { status: "CANCELED", failureCode: remote.cancellation_details?.reason } }); if (sub.autoRenew) await this.markAttemptFailed(sub, new Date(), remote.cancellation_details?.reason ?? "CANCELED"); return; }
     if (remote.status !== "succeeded" || !remote.paid || remote.payment_method?.type !== "sbp" || !remote.payment_method?.id || !remote.payment_method.saved) return;
-    const now = new Date(); const start = payment.kind === "RENEWAL" && sub.periodEnd && sub.periodEnd > now ? sub.periodEnd : now; const end = new Date(start.getTime() + sub.product.periodDays * 86_400_000);
-    const retainAutoRenew = sub.autoRenew && (payment.kind === "INITIAL" || Boolean(sub.paymentMethodId));
-    await this.prisma.$transaction([
-      this.prisma.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, providerPayload: { status: remote.status } as Prisma.InputJsonValue } }),
-      this.prisma.channelSubscription.update({ where: { id: sub.id }, data: { status: retainAutoRenew ? "ACTIVE" : "CANCELED_AT_PERIOD_END", autoRenew: retainAutoRenew, paymentMethodId: retainAutoRenew ? remote.payment_method.id : null, periodStart: start, periodEnd: end, nextChargeAt: retainAutoRenew ? new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000) : null, nextAttemptAt: null, attemptCount: 0 } }),
-    ]);
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-payment:${sub.id}`}))::text`;
+      const currentPayment = await tx.channelPayment.findUniqueOrThrow({ where: { id: payment.id } });
+      if (currentPayment.status === "SUCCEEDED" || currentPayment.status === "REFUNDED") return;
+      const current = await tx.channelSubscription.findUniqueOrThrow({ where: { id: sub.id } });
+      const start = payment.kind === "RENEWAL" && current.periodEnd && current.periodEnd > now ? current.periodEnd : now;
+      const end = new Date(start.getTime() + sub.product.periodDays * 86_400_000);
+      const retainAutoRenew = current.autoRenew && (payment.kind === "INITIAL" || Boolean(current.paymentMethodId));
+      await tx.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, providerPayload: { status: remote.status } as Prisma.InputJsonValue } });
+      await tx.channelSubscription.update({ where: { id: sub.id }, data: { status: retainAutoRenew ? "ACTIVE" : "CANCELED_AT_PERIOD_END", autoRenew: retainAutoRenew, paymentMethodId: retainAutoRenew ? remote.payment_method!.id : null, periodStart: start, periodEnd: end, nextChargeAt: retainAutoRenew ? new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000) : null, nextAttemptAt: null, attemptCount: 0 } });
+    });
+    // Delivery is recoverable independently of receipt processing and webhook retries.
+    await this.invites.queueInvite(payment.id).catch(() => this.logger.warn(`Invite queued for retry: payment ${payment.id}`));
+    const confirmed = await this.prisma.channelPayment.findUniqueOrThrow({ where: { id: payment.id } });
+    if (confirmed.status !== "SUCCEEDED") return;
     const user = await this.prisma.telegramUser.findUnique({ where: { id: sub.userId }, select: { telegramId: true } });
-    if (user) await this.npdReceipts.queueChannelReceipt({ paymentId: payment.id, userId: sub.userId, telegramId: user.telegramId, amountKopecks: payment.amountKopecks, currency: payment.currency, serviceName: sub.product.title, paidAt: now });
+    if (user) await this.npdReceipts.queueChannelReceipt({ paymentId: payment.id, userId: sub.userId, telegramId: user.telegramId, amountKopecks: payment.amountKopecks, currency: payment.currency, serviceName: sub.product.title, paidAt: confirmed.paidAt! });
   }
 
   private async markAttemptFailed(sub: any, now: Date, _failureCode: string) { const attempt = sub.attemptCount + 1; const end = sub.periodEnd ?? now; const final = attempt >= RETRY_OFFSETS_MINUTES.length || now >= new Date(end.getTime() + sub.product.gracePeriodMinutes * 60_000); const offset = RETRY_OFFSETS_MINUTES[Math.min(attempt, RETRY_OFFSETS_MINUTES.length - 1)] ?? 0; await this.prisma.channelSubscription.update({ where: { id: sub.id }, data: { status: final ? "EXPIRED" : "PAST_DUE", attemptCount: attempt, nextAttemptAt: final ? null : new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000 + offset * 60_000) } }); }

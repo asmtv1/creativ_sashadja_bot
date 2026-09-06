@@ -40,6 +40,7 @@ export const OutboxStatus = {
 export type OutboxStatus = (typeof OutboxStatus)[keyof typeof OutboxStatus];
 
 export const OutboxType = {
+  CHANNEL_INVITE: "CHANNEL_INVITE",
   PAYMENT_SUCCEEDED: "PAYMENT_SUCCEEDED",
   NPD_RECEIPT_ISSUED: "NPD_RECEIPT_ISSUED",
   ACCESS_GRANTED: "ACCESS_GRANTED",

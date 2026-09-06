@@ -49,3 +49,14 @@ describe("runOutboxBatch", () => {
     expect(telegram.sendMessage).not.toHaveBeenCalled();
   });
 });
+
+it("delivers the paid channel link instead of course payment instructions", async () => {
+  const api = {
+    getOutbox: vi.fn(async () => [{ id: "invite_1", telegramId: "42", type: "CHANNEL_INVITE" as const, payload: { title: "Креатив идеи", inviteLink: "https://t.me/+test" } }]),
+    markOutboxSent: vi.fn(), markOutboxFailed: vi.fn(),
+  };
+  const telegram = { sendMessage: vi.fn() };
+  await runOutboxBatch({ api, telegram });
+  expect(telegram.sendMessage).toHaveBeenCalledWith("42", expect.stringContaining("одноразовой ссылке: https://t.me/+test"));
+  expect(api.markOutboxSent).toHaveBeenCalledWith("invite_1");
+});

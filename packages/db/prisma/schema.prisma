@@ -39,6 +39,7 @@ enum OutboxStatus {
 }
 
 enum OutboxType {
+  CHANNEL_INVITE
   PAYMENT_SUCCEEDED
   NPD_RECEIPT_ISSUED
   ACCESS_GRANTED
