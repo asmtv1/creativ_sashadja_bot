@@ -132,6 +132,68 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
 });
 
 describe("Channel payment callbacks", () => {
+  it("reconciles an abandoned initial payment to its YooKassa cancellation", async () => {
+    const payment = {
+      id: "payment",
+      subscriptionId: "sub",
+      kind: "INITIAL",
+      status: "PENDING",
+      amountKopecks: 39000,
+      currency: "RUB",
+      providerPaymentId: "provider",
+      subscription: {
+        id: "sub",
+        autoRenew: false,
+        product: { periodDays: 30 },
+      },
+    };
+    const prisma = {
+      channelPayment: {
+        findMany: vi.fn(async () => [payment]),
+        update: vi.fn(async () => undefined),
+      },
+    };
+    const service = new ChannelSubscriptionsService(
+      prisma as any,
+      {} as any,
+      {
+        getPayment: vi.fn(async () => ({
+          id: "provider",
+          status: "canceled",
+          paid: false,
+          amount: { value: "390.00", currency: "RUB" },
+          metadata: { kind: "channel_subscription", paymentId: "payment" },
+          cancellation_details: { reason: "expired_on_confirmation" },
+        })),
+      } as any,
+      {} as any,
+      {} as any,
+    );
+
+    await service.reconcilePendingInitialPayments(
+      new Date("2026-09-15T10:00:00.000Z"),
+    );
+
+    expect(prisma.channelPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          kind: "INITIAL",
+          status: "PENDING",
+          providerPaymentId: { not: null },
+        }),
+      }),
+    );
+    expect(prisma.channelPayment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "payment" },
+        data: expect.objectContaining({
+          status: "CANCELED",
+          failureCode: "expired_on_confirmation",
+        }),
+      }),
+    );
+  });
+
   it("does not extend the subscription again and retries delivery even when receipt processing fails", async () => {
     const paidAt = new Date("2026-09-01T00:00:00Z");
     const payment = {

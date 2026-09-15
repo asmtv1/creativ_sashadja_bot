@@ -96,10 +96,10 @@ export class AdminController {
             where: { productId: product.id },
             include: {
               payments: {
-                where: { status: "SUCCEEDED" },
-                orderBy: { paidAt: "desc" },
+                orderBy: { createdAt: "desc" },
                 take: 1,
               },
+              membership: true,
             },
             take: 1,
           },
@@ -148,7 +148,14 @@ export class AdminController {
             [user.firstName, user.lastName].filter(Boolean).join(" ") || null,
           firstSeenAt: user.createdAt.toISOString(),
           hasAccess,
-          source: subscription ? (payment ? "PAYMENT" : "ADMIN") : null,
+          source:
+            subscription?.membership?.source === "MANUAL"
+              ? "ADMIN"
+              : payment?.status === "SUCCEEDED" ||
+                  (hasAccess && Boolean(subscription?.periodEnd))
+                ? "PAYMENT"
+                : null,
+          paymentStatus: payment?.status ?? null,
           paidAt: payment?.paidAt?.toISOString() ?? null,
           amountKopecks: payment?.amountKopecks ?? null,
           accessUntil: subscription?.periodEnd?.toISOString() ?? null,

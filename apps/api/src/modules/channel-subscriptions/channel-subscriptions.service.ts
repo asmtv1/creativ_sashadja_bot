@@ -102,6 +102,32 @@ export class ChannelSubscriptionsService {
     for (const sub of due) await this.renewOne(sub.id, now);
   }
 
+  async reconcilePendingInitialPayments(now = new Date()) {
+    const payments = await this.prisma.channelPayment.findMany({
+      where: {
+        kind: "INITIAL",
+        status: "PENDING",
+        providerPaymentId: { not: null },
+        updatedAt: { lte: new Date(now.getTime() - 5 * 60_000) },
+      },
+      include: { subscription: { include: { product: true } } },
+      orderBy: { updatedAt: "asc" },
+      take: 100,
+    });
+    for (const payment of payments) {
+      try {
+        await this.applyRemotePayment(
+          payment,
+          await this.yookassa.getPayment(payment.providerPaymentId!),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Unable to reconcile initial channel payment ${payment.id}: ${error instanceof Error ? error.name : "unknown"}`,
+        );
+      }
+    }
+  }
+
   private async renewOne(subscriptionId: string, now: Date) {
     const sub = await this.prisma.channelSubscription.findUnique({ where: { id: subscriptionId }, include: { product: true } });
     if (!sub?.autoRenew || !sub.paymentMethodId || !sub.periodEnd) return;

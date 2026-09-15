@@ -5,6 +5,12 @@ import { FormEvent, useState } from "react";
 type Credentials = { user: string; password: string };
 type ProductKey = "course" | "channel";
 type AdminTab = ProductKey | "receipts";
+type ChannelPaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "CANCELED"
+  | "FAILED"
+  | "REFUNDED";
 type DashboardUser = {
   telegramId: string;
   username: string | null;
@@ -12,6 +18,7 @@ type DashboardUser = {
   firstSeenAt: string;
   hasAccess: boolean;
   source: "PAYMENT" | "ADMIN" | null;
+  paymentStatus?: ChannelPaymentStatus | null;
   paidAt: string | null;
   amountKopecks: number | null;
   accessUntil?: string | null;
@@ -513,7 +520,14 @@ function UserRow({
             : "—"}
       </td>
       <td>
-        {user.amountKopecks ? (
+        {user.paymentStatus === "PENDING" ? (
+          "Ожидает оплаты"
+        ) : user.paymentStatus === "CANCELED" ||
+          user.paymentStatus === "FAILED" ? (
+          "Не оплатил"
+        ) : user.paymentStatus === "REFUNDED" ? (
+          "Возврат"
+        ) : user.amountKopecks ? (
           <>
             {formatRubles(user.amountKopecks)}
             <small>{user.paidAt ? formatDate(user.paidAt) : ""}</small>

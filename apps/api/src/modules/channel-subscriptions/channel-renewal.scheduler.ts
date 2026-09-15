@@ -5,6 +5,15 @@ import { ChannelSubscriptionsService } from "./channel-subscriptions.service";
 export class ChannelRenewalScheduler implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   constructor(private readonly subscriptions: ChannelSubscriptionsService) {}
-  onModuleInit() { this.timer = setInterval(() => void this.subscriptions.runRenewals().catch(() => undefined), 15 * 60_000); }
+  onModuleInit() {
+    this.timer = setInterval(
+      () =>
+        void Promise.all([
+          this.subscriptions.runRenewals(),
+          this.subscriptions.reconcilePendingInitialPayments(),
+        ]).catch(() => undefined),
+      15 * 60_000,
+    );
+  }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 }

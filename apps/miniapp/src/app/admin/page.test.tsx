@@ -42,7 +42,30 @@ const channelDashboard = {
     currency: "RUB",
   },
   metrics: { openedBot: 12, paidUsers: 1, revenueKopecks: 39000 },
-  users: [],
+  users: [
+    {
+      telegramId: "43",
+      username: "waiting",
+      name: "Ожидающий",
+      firstSeenAt: "2026-08-01T00:00:00.000Z",
+      hasAccess: false,
+      source: null,
+      paymentStatus: "PENDING",
+      paidAt: null,
+      amountKopecks: 39000,
+    },
+    {
+      telegramId: "44",
+      username: "did-not-pay",
+      name: "Отказ от оплаты",
+      firstSeenAt: "2026-08-01T00:00:00.000Z",
+      hasAccess: false,
+      source: null,
+      paymentStatus: "CANCELED",
+      paidAt: null,
+      amountKopecks: 39000,
+    },
+  ],
 };
 const receipts = [
   {
@@ -100,6 +123,8 @@ describe("AdminPage", () => {
         screen.getByRole("heading", { name: "Креатив идеи" }),
       ).toBeTruthy(),
     );
+    expect(screen.getByText("Ожидает оплаты")).toBeTruthy();
+    expect(screen.getByText("Не оплатил")).toBeTruthy();
     expect(screen.getAllByText(/390.*₽/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("heading", { name: "Чеки НПД" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Чеки НПД" }));
