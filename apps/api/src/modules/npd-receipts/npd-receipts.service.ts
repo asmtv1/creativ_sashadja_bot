@@ -84,7 +84,12 @@ export class NpdReceiptsService implements OnModuleInit, OnModuleDestroy {
         await this.finish(operation.id, owner, { status: "RETRY", nextAttemptAt: null, lastErrorCode: npdError.code, lastErrorRedacted: "NPD authorization needs renewal" });
         return;
       }
-      if (["RATE_LIMITED", "TIMEOUT", "NETWORK"].includes(npdError.code) && operation.attemptCount < RETRY_DELAYS_MS.length) {
+      // A 5xx can happen before the income request (for example while refreshing
+      // the NPD token). It is temporary, but unlike a 5xx from createReceipt it
+      // is not an ambiguous fiscal write. Retry it with the same bounded backoff.
+      const retryable = ["RATE_LIMITED", "TIMEOUT", "NETWORK"].includes(npdError.code)
+        || (npdError.code === "API_ERROR" && (npdError.status ?? 0) >= 500);
+      if (retryable && operation.attemptCount < RETRY_DELAYS_MS.length) {
         await this.finish(operation.id, owner, { status: "RETRY", nextAttemptAt: retryAt(operation.attemptCount), lastErrorCode: npdError.code, lastErrorRedacted: "NPD temporary failure" });
         return;
       }

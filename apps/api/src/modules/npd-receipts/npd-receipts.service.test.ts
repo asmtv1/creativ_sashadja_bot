@@ -3,6 +3,26 @@ import { NpdGatewayError } from "@course/npd";
 import { NpdReceiptsService } from "./npd-receipts.service";
 
 describe("NpdReceiptsService issuance", () => {
+  it("retries a temporary NPD API 5xx instead of permanently failing the receipt", async () => {
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const update = vi.fn(async () => ({}));
+    const prisma = { npdReceiptOperation: { updateMany }, npdReceipt: { update } };
+    const service = new NpdReceiptsService(prisma as any, {} as any);
+    const createReceipt = vi.fn().mockRejectedValue(new NpdGatewayError("API_ERROR", "temporary outage", 503));
+    vi.spyOn(service as any, "gatewayFor").mockResolvedValue({ createReceipt });
+
+    await (service as any).processOne({
+      id: "operation", receiptId: "receipt", attemptCount: 1,
+      receipt: { connection: { inn: "123456789012" }, operationAt: new Date(), serviceName: "Канал", amountKopecks: 39000 }
+    }, "owner");
+
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "operation", status: "PROCESSING", leaseOwner: "owner" },
+      data: expect.objectContaining({ status: "RETRY", lastErrorCode: "API_ERROR", lastErrorRedacted: "NPD temporary failure" })
+    }));
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("uses WIRE and persists safe provider diagnostics for a rejected receipt", async () => {
     const updateMany = vi.fn(async () => ({ count: 1 }));
     const update = vi.fn(async () => ({}));
