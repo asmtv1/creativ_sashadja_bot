@@ -40,9 +40,10 @@ function startOutboxWorker(internalApi: InternalApiClient, telegram: Api) {
   setInterval(() => {
     void runOutboxBatch({
       api: internalApi,
+      miniAppUrl: config.PUBLIC_BASE_URL,
       telegram: {
-        sendMessage: async (telegramId, text) => {
-          await telegram.sendMessage(telegramId, text);
+        sendMessage: async (telegramId, text, options) => {
+          await telegram.sendMessage(telegramId, text, options);
         }
       }
     });

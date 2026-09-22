@@ -1,14 +1,19 @@
 import { BotOutboxItem } from "@course/shared";
+import type { Api } from "grammy";
 import { PAYMENT_SUCCESS_MESSAGE } from "./content";
+import { openCourseKeyboard } from "./keyboards";
 import { BotApi } from "./types";
 
+type TelegramSendMessageOptions = Parameters<Api["sendMessage"]>[2];
+
 export type TelegramSender = {
-  sendMessage(telegramId: string, text: string): Promise<void>;
+  sendMessage(telegramId: string, text: string, options?: TelegramSendMessageOptions): Promise<void>;
 };
 
 export async function runOutboxBatch(deps: {
   api: Pick<BotApi, "getOutbox" | "markOutboxSent" | "markOutboxFailed">;
   telegram: TelegramSender;
+  miniAppUrl: string;
 }) {
   let items: BotOutboxItem[];
   try {
@@ -23,7 +28,12 @@ export async function runOutboxBatch(deps: {
 
   for (const item of items) {
     try {
-      await deps.telegram.sendMessage(item.telegramId, messageForOutboxItem(item));
+      const text = messageForOutboxItem(item);
+      if (item.type === "PAYMENT_SUCCEEDED") {
+        await deps.telegram.sendMessage(item.telegramId, text, openCourseKeyboard(deps.miniAppUrl));
+      } else {
+        await deps.telegram.sendMessage(item.telegramId, text);
+      }
       await deps.api.markOutboxSent(item.id);
     } catch (error) {
       await deps.api.markOutboxFailed(

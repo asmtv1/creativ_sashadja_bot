@@ -12,11 +12,16 @@ describe("runOutboxBatch", () => {
     };
     const telegram = { sendMessage: vi.fn(async () => undefined) };
 
-    await runOutboxBatch({ api, telegram });
+    await runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" });
 
     expect(telegram.sendMessage).toHaveBeenCalledWith(
       "42",
-      expect.stringContaining("Урок успешно оплачен")
+      expect.stringContaining("Урок успешно оплачен"),
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: "Открыть курс", web_app: { url: "https://course.example.com" } }]]
+        }
+      }
     );
     expect(api.markOutboxSent).toHaveBeenCalledWith("out_1");
     expect(api.markOutboxFailed).not.toHaveBeenCalled();
@@ -32,7 +37,7 @@ describe("runOutboxBatch", () => {
     };
     const telegram = { sendMessage: vi.fn(async () => Promise.reject(new Error("telegram down"))) };
 
-    await runOutboxBatch({ api, telegram });
+    await runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" });
 
     expect(api.markOutboxFailed).toHaveBeenCalledWith("out_1", "telegram down");
   });
@@ -45,7 +50,7 @@ describe("runOutboxBatch", () => {
     };
     const telegram = { sendMessage: vi.fn(async () => undefined) };
 
-    await expect(runOutboxBatch({ api, telegram })).resolves.toBeUndefined();
+    await expect(runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" })).resolves.toBeUndefined();
     expect(telegram.sendMessage).not.toHaveBeenCalled();
   });
 });
@@ -56,7 +61,7 @@ it("delivers the paid channel link instead of course payment instructions", asyn
     markOutboxSent: vi.fn(), markOutboxFailed: vi.fn(),
   };
   const telegram = { sendMessage: vi.fn() };
-  await runOutboxBatch({ api, telegram });
+  await runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" });
   expect(telegram.sendMessage).toHaveBeenCalledWith("42", expect.stringContaining("одноразовой ссылке: https://t.me/+test"));
   expect(api.markOutboxSent).toHaveBeenCalledWith("invite_1");
 });
