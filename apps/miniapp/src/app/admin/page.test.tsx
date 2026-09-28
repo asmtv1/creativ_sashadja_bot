@@ -85,11 +85,14 @@ const receipts = [
 
 describe("AdminPage", () => {
   it("loads product dashboards and opens NPD receipts from a separate menu tab", async () => {
+    let hasSession = false;
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        async (input: string) =>
-          new Response(
+        async (input: string, init?: RequestInit) => {
+          if (init?.headers && "Authorization" in init.headers) hasSession = true;
+          if (!hasSession) return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
+          return new Response(
             JSON.stringify(
               input.includes("/npd-receipts")
                 ? receipts
@@ -98,10 +101,13 @@ describe("AdminPage", () => {
                   : courseDashboard,
             ),
             { status: 200 },
-          ),
+          );
+        },
       ),
     );
     render(<AdminPage />);
+
+    await screen.findByRole("button", { name: "Войти" });
 
     fireEvent.change(screen.getByLabelText("Логин"), {
       target: { value: "admin" },
@@ -130,5 +136,9 @@ describe("AdminPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Чеки НПД" }));
     expect(await screen.findByRole("heading", { name: "Чеки НПД" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Открыть чек" }).getAttribute("href")).toBe(receipts[0]!.receiptUrl);
+
+    cleanup();
+    render(<AdminPage />);
+    expect(await screen.findByRole("heading", { name: "Креативный контент | обучение" })).toBeTruthy();
   });
 });

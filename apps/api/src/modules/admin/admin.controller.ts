@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { AdminAccessMutationRequestSchema } from "@course/shared";
@@ -25,6 +26,12 @@ export class AdminController {
     private readonly access: AdminAccessService,
     private readonly channelAccess: AdminChannelAccessService,
   ) {}
+
+  @Post("signout")
+  signout(@Res({ passthrough: true }) response: { setHeader(name: string, value: string): void }) {
+    response.setHeader("Set-Cookie", "admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/api/admin; Max-Age=0");
+    return { ok: true };
+  }
 
   @Get("dashboard/course")
   async courseDashboard() {

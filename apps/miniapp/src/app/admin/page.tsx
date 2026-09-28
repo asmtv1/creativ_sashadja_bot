@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type Credentials = { user: string; password: string };
 type ProductKey = "course" | "channel";
@@ -75,6 +75,7 @@ export default function AdminPage() {
     password: "",
   });
   const [isAuthorized, setAuthorized] = useState(false);
+  const [isRestoring, setRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<AdminTab>("course");
   const [dashboards, setDashboards] = useState<
     Partial<Record<ProductKey, Dashboard>>
@@ -92,7 +93,7 @@ export default function AdminPage() {
 
   async function loadDashboard(
     tab: ProductKey,
-    activeCredentials = credentials,
+    activeCredentials?: Credentials,
   ) {
     const payload = (await adminRequest(
       `/api/admin/dashboard/${tab}`,
@@ -101,7 +102,7 @@ export default function AdminPage() {
     setDashboards((current) => ({ ...current, [tab]: payload }));
   }
 
-  async function loadReceipts(activeCredentials = credentials) {
+  async function loadReceipts(activeCredentials?: Credentials) {
     const payload = (await adminRequest("/api/admin/npd-receipts", activeCredentials)) as Receipt[];
     setReceipts(payload);
   }
@@ -111,7 +112,9 @@ export default function AdminPage() {
     setNotice(null);
     setLoading(true);
     try {
-      await Promise.all([loadDashboard("course"), loadDashboard("channel")]);
+      await loadDashboard("course", credentials);
+      await loadDashboard("channel");
+      setCredentials({ user: "", password: "" });
       setAuthorized(true);
     } catch {
       setNotice({
@@ -122,6 +125,13 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    void Promise.all([loadDashboard("course"), loadDashboard("channel")])
+      .then(() => setAuthorized(true))
+      .catch(() => {})
+      .finally(() => setRestoring(false));
+  }, []);
 
   async function changeTab(tab: AdminTab) {
     setActiveTab(tab);
@@ -160,7 +170,6 @@ export default function AdminPage() {
     if (!target.startsWith("@")) return target;
     const result = (await adminRequest(
       `/api/admin/users/by-username/${encodeURIComponent(target)}`,
-      credentials,
     )) as { telegramId: string | null };
     if (!result.telegramId)
       throw new Error("Пользователь ещё не запускал бота.");
@@ -183,7 +192,7 @@ export default function AdminPage() {
         activeTab === "course"
           ? { telegramId, courseSlug: "basic-course" }
           : { telegramId };
-      const result = await adminRequest(path, credentials, {
+      const result = await adminRequest(path, undefined, {
         method: "POST",
         body,
       });
@@ -214,6 +223,8 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
+
+  if (isRestoring) return <main className="admin-shell" />;
 
   if (!isAuthorized)
     return (
@@ -275,10 +286,14 @@ export default function AdminPage() {
             className="admin-signout"
             type="button"
             onClick={() => {
-              setAuthorized(false);
-              setDashboards({});
-              setReceipts([]);
-              setCredentials({ user: "", password: "" });
+              void adminRequest("/api/admin/signout", undefined, { method: "POST" })
+                .then(() => {
+                  setAuthorized(false);
+                  setDashboards({});
+                  setReceipts([]);
+                  setCredentials({ user: "", password: "" });
+                })
+                .catch(() => setNotice({ kind: "error", text: "Не удалось выйти. Попробуйте ещё раз." }));
             }}
           >
             Выйти
@@ -573,13 +588,13 @@ function formatDate(value: string) {
 }
 async function adminRequest(
   path: string,
-  credentials: Credentials,
+  credentials?: Credentials,
   init: { method?: string; body?: unknown } = {},
 ) {
   const response = await fetch(path, {
     method: init.method ?? "GET",
     headers: {
-      Authorization: `Basic ${btoa(`${credentials.user}:${credentials.password}`)}`,
+      ...(credentials ? { Authorization: `Basic ${btoa(`${credentials.user}:${credentials.password}`)}` } : {}),
       "Content-Type": "application/json",
     },
     body: init.body ? JSON.stringify(init.body) : undefined,
