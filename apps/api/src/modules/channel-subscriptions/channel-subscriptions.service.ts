@@ -171,7 +171,23 @@ export class ChannelSubscriptionsService {
   private async applyRemotePayment(payment: any, remote: YooKassaPayment) {
     const sub = payment.subscription ?? await this.prisma.channelSubscription.findUniqueOrThrow({ where: { id: payment.subscriptionId }, include: { product: true } });
     if (remote.amount.value !== `${Math.floor(payment.amountKopecks / 100)}.${String(payment.amountKopecks % 100).padStart(2, "0")}` || remote.amount.currency !== payment.currency || remote.metadata?.kind !== "channel_subscription" || remote.metadata?.paymentId !== payment.id) throw new ForbiddenException("Payment verification failed");
-    if (remote.status === "canceled") { await this.prisma.channelPayment.update({ where: { id: payment.id }, data: { status: "CANCELED", failureCode: remote.cancellation_details?.reason } }); if (sub.autoRenew) await this.markAttemptFailed(sub, new Date(), remote.cancellation_details?.reason ?? "CANCELED"); return; }
+    if (remote.status === "canceled") {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-payment:${sub.id}`}))::text`;
+        const currentPayment = await tx.channelPayment.findUniqueOrThrow({ where: { id: payment.id } });
+        // A terminal payment must not consume another retry on repeated callbacks.
+        if (currentPayment.status !== "PENDING") return;
+        await tx.channelPayment.update({ where: { id: payment.id }, data: { status: "CANCELED", failureCode: remote.cancellation_details?.reason } });
+        // An abandoned checkout is independent of the paid subscription period.
+        if (currentPayment.kind !== "RENEWAL") return;
+        const current = await tx.channelSubscription.findUniqueOrThrow({ where: { id: sub.id }, include: { product: true } });
+        if (!current.autoRenew || !["ACTIVE", "PAST_DUE"].includes(current.status)) return;
+        const newerSuccess = await tx.channelPayment.findFirst({ where: { subscriptionId: sub.id, status: "SUCCEEDED", paidAt: { gte: currentPayment.createdAt } } });
+        if (newerSuccess) return;
+        await this.markAttemptFailed(current, new Date(), remote.cancellation_details?.reason ?? "CANCELED", tx);
+      });
+      return;
+    }
     if (remote.status !== "succeeded" || !remote.paid || remote.payment_method?.type !== "sbp" || !remote.payment_method?.id || !remote.payment_method.saved) return;
     const now = new Date();
     await this.prisma.$transaction(async (tx) => {
@@ -204,7 +220,7 @@ export class ChannelSubscriptionsService {
     if (user) await this.npdReceipts.queueChannelReceipt({ paymentId: payment.id, userId: sub.userId, telegramId: user.telegramId, amountKopecks: payment.amountKopecks, currency: payment.currency, serviceName: sub.product.title, paidAt: confirmed.paidAt! });
   }
 
-  private async markAttemptFailed(sub: any, now: Date, _failureCode: string) { const attempt = sub.attemptCount + 1; const end = sub.periodEnd ?? now; const final = attempt >= RETRY_OFFSETS_MINUTES.length || now >= new Date(end.getTime() + sub.product.gracePeriodMinutes * 60_000); const offset = RETRY_OFFSETS_MINUTES[Math.min(attempt, RETRY_OFFSETS_MINUTES.length - 1)] ?? 0; await this.prisma.channelSubscription.update({ where: { id: sub.id }, data: { status: final ? "EXPIRED" : "PAST_DUE", attemptCount: attempt, nextAttemptAt: final ? null : new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000 + offset * 60_000) } }); }
+  private async markAttemptFailed(sub: any, now: Date, _failureCode: string, db: Pick<Prisma.TransactionClient, "channelSubscription"> = this.prisma) { const attempt = sub.attemptCount + 1; const end = sub.periodEnd ?? now; const final = attempt >= RETRY_OFFSETS_MINUTES.length || now >= new Date(end.getTime() + sub.product.gracePeriodMinutes * 60_000); const offset = RETRY_OFFSETS_MINUTES[Math.min(attempt, RETRY_OFFSETS_MINUTES.length - 1)] ?? 0; await db.channelSubscription.update({ where: { id: sub.id }, data: { status: final ? "EXPIRED" : "PAST_DUE", attemptCount: attempt, nextAttemptAt: final ? null : new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000 + offset * 60_000) } }); }
   private async productOrThrow() { const product = await this.prisma.channelProduct.findUnique({ where: { slug: process.env.CHANNEL_PRODUCT_SLUG ?? PRODUCT_SLUG } }); if (!product) throw new NotFoundException("Channel product not found"); return product; }
   private async subscriptionForTelegramId(telegramId: string) { const product = await this.productOrThrow(); const user = await this.users.findByTelegramId(telegramId); const sub = user ? await this.prisma.channelSubscription.findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } }) : null; if (!sub) throw new NotFoundException("Subscription not found"); return sub; }
   private async status(id: string, confirmationUrl?: string) { const sub = await this.prisma.channelSubscription.findUniqueOrThrow({ where: { id }, include: { product: true } }); return { status: sub.status, activeUntil: sub.periodEnd?.toISOString() ?? null, nextChargeAt: sub.nextChargeAt?.toISOString() ?? null, autoRenew: sub.autoRenew, amountKopecks: sub.product.priceKopecks, currency: sub.product.currency, ...(confirmationUrl ? { confirmationUrl } : {}) }; }

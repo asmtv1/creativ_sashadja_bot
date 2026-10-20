@@ -134,6 +134,56 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
 });
 
 describe("Channel payment callbacks", () => {
+  it.each(["INITIAL", "RENEWAL"])("handles repeated %s cancellations once without corrupting paid access", async (kind) => {
+    const subscription = {
+      id: "sub", status: "ACTIVE", autoRenew: true, attemptCount: 0,
+      periodEnd: new Date(Date.now() + 30 * 86_400_000),
+      product: { renewalLeadMinutes: 240, gracePeriodMinutes: 1440 },
+    };
+    const payment = {
+      id: "payment", subscriptionId: "sub", kind, status: "PENDING",
+      createdAt: new Date(), amountKopecks: 39000, currency: "RUB", subscription,
+    };
+    const prisma = {
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(async (fn: any) => fn(prisma)),
+      channelPayment: {
+        findUnique: vi.fn(async () => payment),
+        findUniqueOrThrow: vi.fn(async () => payment),
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async ({ data }: any) => Object.assign(payment, data)),
+      },
+      channelSubscription: {
+        findUniqueOrThrow: vi.fn(async () => subscription),
+        update: vi.fn(async ({ data }: any) => Object.assign(subscription, data)),
+      },
+    };
+    const remote = {
+      status: "canceled", amount: { value: "390.00", currency: "RUB" },
+      metadata: { kind: "channel_subscription", paymentId: "payment" },
+      cancellation_details: { reason: "insufficient_funds" },
+    };
+    const service = new ChannelSubscriptionsService(prisma as any, {} as any, { getPayment: vi.fn(async () => remote) } as any, {} as any, {} as any);
+    await service.handleWebhook("provider");
+    await service.handleWebhook("provider");
+    await service.handleWebhook("provider");
+    expect(prisma.channelPayment.update).toHaveBeenCalledTimes(1);
+    expect(subscription.autoRenew).toBe(true);
+    expect(subscription.attemptCount).toBe(kind === "RENEWAL" ? 1 : 0);
+    expect(subscription.status).toBe(kind === "RENEWAL" ? "PAST_DUE" : "ACTIVE");
+
+    // A delayed cancellation must also leave a subsequently paid period alone.
+    if (kind === "RENEWAL") {
+      payment.status = "PENDING";
+      subscription.status = "ACTIVE";
+      subscription.attemptCount = 0;
+      prisma.channelPayment.findFirst.mockResolvedValue({ id: "newer-paid" } as any);
+      await service.handleWebhook("provider");
+      expect(subscription.status).toBe("ACTIVE");
+      expect(subscription.attemptCount).toBe(0);
+    }
+  });
+
   it("reconciles an abandoned initial payment to its YooKassa cancellation", async () => {
     const payment = {
       id: "payment",
@@ -150,7 +200,10 @@ describe("Channel payment callbacks", () => {
       },
     };
     const prisma = {
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(async (fn: any) => fn(prisma)),
       channelPayment: {
+        findUniqueOrThrow: vi.fn(async () => payment),
         findMany: vi.fn(async () => [payment]),
         update: vi.fn(async () => undefined),
       },
