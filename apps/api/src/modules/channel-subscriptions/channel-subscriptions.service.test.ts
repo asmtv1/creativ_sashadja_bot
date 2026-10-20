@@ -28,6 +28,8 @@ describe("ChannelSubscriptionsService stopAutoRenew", () => {
       product
     };
     const prisma = {
+      $queryRaw: vi.fn(async () => []),
+      $transaction: vi.fn(async (fn: any) => fn(prisma)),
       channelProduct: { findUnique: vi.fn(async () => product) },
       channelSubscription: {
         upsert: vi.fn(async () => subscription),

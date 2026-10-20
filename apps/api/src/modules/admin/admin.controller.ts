@@ -1,3 +1,4 @@
+import { ChannelExpiryService } from "../channel-subscriptions/channel-expiry.service";
 import {
   Body,
   Controller,
@@ -27,6 +28,7 @@ export class AdminController {
     private readonly access: AdminAccessService,
     private readonly channelAccess: AdminChannelAccessService,
     private readonly channelRenewals: AdminChannelRenewalsService,
+    private readonly channelExpiry: ChannelExpiryService,
   ) {}
 
   @Post("signout")
@@ -177,6 +179,11 @@ export class AdminController {
   @Get("channel-renewals")
   channelRenewalsReport() {
     return this.channelRenewals.getReport();
+  }
+
+  @Get("channel-expiry-preview")
+  channelExpiryPreview(@Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.channelExpiry.preview({ limit: limit === undefined ? 50 : Number(limit), offset: offset === undefined ? 0 : Number(offset) });
   }
 
   @Get("orders")

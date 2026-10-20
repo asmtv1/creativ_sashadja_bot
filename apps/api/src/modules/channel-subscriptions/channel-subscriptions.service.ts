@@ -27,9 +27,15 @@ export class ChannelSubscriptionsService {
       update: { termsVersion: process.env.CHANNEL_SUBSCRIPTION_TERMS_VERSION ?? "unpublished", termsAcceptedAt: new Date() },
       create: { userId: user.id, productId: product.id, termsVersion: process.env.CHANNEL_SUBSCRIPTION_TERMS_VERSION ?? "unpublished", termsAcceptedAt: new Date() }
     });
-    const pending = await this.prisma.channelPayment.findFirst({ where: { subscriptionId: subscription.id, status: "PENDING", confirmationUrl: { not: null } }, orderBy: { createdAt: "desc" } });
-    if (pending?.confirmationUrl) return this.status(subscription.id, pending.confirmationUrl);
-    const payment = await this.prisma.channelPayment.create({ data: { subscriptionId: subscription.id, kind: "INITIAL", amountKopecks: product.priceKopecks, currency: product.currency, idempotenceKey: randomUUID() } });
+    const checkout = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-payment:${subscription.id}`}))::text`;
+      const pending = await tx.channelPayment.findFirst({ where: { subscriptionId: subscription.id, status: "PENDING", confirmationUrl: { not: null } }, orderBy: { createdAt: "desc" } });
+      if (pending?.confirmationUrl) return { confirmationUrl: pending.confirmationUrl, payment: null };
+      const payment = await tx.channelPayment.create({ data: { subscriptionId: subscription.id, kind: "INITIAL", amountKopecks: product.priceKopecks, currency: product.currency, idempotenceKey: randomUUID() } });
+      return { confirmationUrl: null, payment };
+    });
+    if (checkout.confirmationUrl) return this.status(subscription.id, checkout.confirmationUrl);
+    const payment = checkout.payment!;
     try {
       const remote = await this.yookassa.createSbpPayment({ idempotenceKey: payment.idempotenceKey, amountKopecks: payment.amountKopecks, currency: payment.currency, returnUrl: new URL("/start?channel_payment=checking", process.env.PUBLIC_BASE_URL).href, savePaymentMethod: true, metadata: { kind: "channel_subscription", paymentId: payment.id, subscriptionId: subscription.id, userId: user.id, productSlug: product.slug } });
       if (!remote.confirmation?.confirmation_url) throw new Error("Missing confirmation URL");
@@ -129,13 +135,37 @@ export class ChannelSubscriptionsService {
   }
 
   private async renewOne(subscriptionId: string, now: Date) {
-    const sub = await this.prisma.channelSubscription.findUnique({ where: { id: subscriptionId }, include: { product: true } });
-    if (!sub?.autoRenew || !sub.paymentMethodId || !sub.periodEnd) return;
-    const pending = await this.prisma.channelPayment.findFirst({ where: { subscriptionId, status: "PENDING" }, orderBy: { createdAt: "desc" } });
-    if (pending?.providerPaymentId) { await this.applyRemotePayment(pending as any, await this.yookassa.getPayment(pending.providerPaymentId)); return; }
-    const payment = await this.prisma.channelPayment.create({ data: { subscriptionId, kind: "RENEWAL", amountKopecks: sub.product.priceKopecks, currency: sub.product.currency, idempotenceKey: randomUUID() } });
-    try { const remote = await this.yookassa.createSavedMethodPayment({ idempotenceKey: payment.idempotenceKey, amountKopecks: payment.amountKopecks, currency: payment.currency, paymentMethodId: sub.paymentMethodId, metadata: { kind: "channel_subscription", paymentId: payment.id, subscriptionId, productSlug: sub.product.slug } }); await this.prisma.channelPayment.update({ where: { id: payment.id }, data: { providerPaymentId: remote.id } }); await this.applyRemotePayment({ ...payment, subscription: sub } as any, remote); }
-    catch { await this.markAttemptFailed(sub, now, "PROVIDER_UNAVAILABLE"); }
+    // The expiry worker and payment application use this same lock. A new
+    // pending renewal cannot appear between the worker's final check and ban.
+    const claim = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-payment:${subscriptionId}`}))::text`;
+      const sub = await tx.channelSubscription.findUnique({ where: { id: subscriptionId }, include: { product: true } });
+      if (!sub?.autoRenew || !sub.paymentMethodId || !sub.periodEnd) return null;
+      const pending = await tx.channelPayment.findFirst({ where: { subscriptionId, status: "PENDING" }, orderBy: { createdAt: "desc" } });
+      if (pending) return { sub, payment: pending, existing: true };
+      const payment = await tx.channelPayment.create({ data: { subscriptionId, kind: "RENEWAL", amountKopecks: sub.product.priceKopecks, currency: sub.product.currency, idempotenceKey: randomUUID() } });
+      return { sub, payment, existing: false };
+    });
+    if (!claim) return;
+    const { sub, payment } = claim;
+    if (claim.existing) {
+      if (payment.providerPaymentId) {
+        await this.applyRemotePayment({ ...payment, subscription: sub }, await this.yookassa.getPayment(payment.providerPaymentId));
+      }
+      // An in-flight payment without a provider ID must not be duplicated.
+      return;
+    }
+    try {
+      const remote = await this.yookassa.createSavedMethodPayment({
+        idempotenceKey: payment.idempotenceKey, amountKopecks: payment.amountKopecks,
+        currency: payment.currency, paymentMethodId: sub.paymentMethodId!,
+        metadata: { kind: "channel_subscription", paymentId: payment.id, subscriptionId, productSlug: sub.product.slug },
+      });
+      await this.prisma.channelPayment.update({ where: { id: payment.id }, data: { providerPaymentId: remote.id } });
+      await this.applyRemotePayment({ ...payment, subscription: sub }, remote);
+    } catch {
+      await this.markAttemptFailed(sub, now, "PROVIDER_UNAVAILABLE");
+    }
   }
 
   private async applyRemotePayment(payment: any, remote: YooKassaPayment) {
@@ -148,12 +178,23 @@ export class ChannelSubscriptionsService {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-payment:${sub.id}`}))::text`;
       const currentPayment = await tx.channelPayment.findUniqueOrThrow({ where: { id: payment.id } });
       if (currentPayment.status === "SUCCEEDED" || currentPayment.status === "REFUNDED") return;
-      const current = await tx.channelSubscription.findUniqueOrThrow({ where: { id: sub.id } });
+      const current = await tx.channelSubscription.findUniqueOrThrow({ where: { id: sub.id }, include: { membership: true, removalTask: true } });
+      const rejoinInviteRequired = Boolean(current.membership?.removedAt || current.removalTask?.status === "REMOVED");
       const start = payment.kind === "RENEWAL" && current.periodEnd && current.periodEnd > now ? current.periodEnd : now;
       const end = new Date(start.getTime() + sub.product.periodDays * 86_400_000);
       const retainAutoRenew = current.autoRenew && (payment.kind === "INITIAL" || Boolean(current.paymentMethodId));
-      await tx.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, providerPayload: { status: remote.status } as Prisma.InputJsonValue } });
+      await tx.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, rejoinInviteRequired, providerPayload: { status: remote.status } as Prisma.InputJsonValue } });
       await tx.channelSubscription.update({ where: { id: sub.id }, data: { status: retainAutoRenew ? "ACTIVE" : "CANCELED_AT_PERIOD_END", autoRenew: retainAutoRenew, paymentMethodId: retainAutoRenew ? remote.payment_method!.id : null, periodStart: start, periodEnd: end, nextChargeAt: retainAutoRenew ? new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000) : null, nextAttemptAt: null, attemptCount: 0 } });
+      // An expired user can repay after cleanup: clear the old removal marker
+      // under the same lock before allowing a new access period.
+      await tx.channelRemovalTask.updateMany({
+        where: { subscriptionId: sub.id },
+        data: { status: "PENDING", attempts: 0, lastError: null, lastReason: "PAYMENT_SUCCEEDED", removedAt: null, nextAttemptAt: end },
+      });
+      await tx.channelMembership.updateMany({
+        where: { subscriptionId: sub.id },
+        data: { source: "MANAGED", removedAt: null },
+      });
     });
     // Delivery is recoverable independently of receipt processing and webhook retries.
     await this.invites.queueInvite(payment.id).catch(() => this.logger.warn(`Invite queued for retry: payment ${payment.id}`));

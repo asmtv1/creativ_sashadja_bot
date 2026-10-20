@@ -1560,3 +1560,7 @@ html.player-fullscreen-open body {
 }
 .admin-renewal-history li + li { margin-top: 6px; }
 .admin-table summary { cursor: pointer; }
+
+.admin-renewal-pagination { display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; }
+.admin-renewal-pagination button { padding: 9px 13px; border-radius: 8px; background: #1a3348; color: #d8e8f6; border: 1px solid #3d5770; cursor: pointer; }
+.admin-renewal-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }

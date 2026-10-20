@@ -52,6 +52,14 @@ describe("Paid channel invitations", () => {
     await service.queueInvite("payment");
     expect(telegram).not.toHaveBeenCalled();
   });
+  it("sends a rejoin invitation for a successful renewal after confirmed removal", async () => {
+    const { service, payment, telegram, tx } = setup();
+    Object.assign(payment, { kind: "RENEWAL", rejoinInviteRequired: true });
+    await service.queueInvite("payment");
+    expect(telegram).toHaveBeenCalledTimes(1);
+    expect(tx.botOutbox.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: "CHANNEL_INVITE" }) }));
+  });
+
   it("leaves an unbound channel recoverable", async () => {
     const { service, payment, telegram } = setup();
     payment.subscription.product.telegramChatId = null as any;

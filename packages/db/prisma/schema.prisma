@@ -115,6 +115,13 @@ enum ChannelMembershipSource {
   EXEMPT
 }
 
+enum ChannelRemovalStatus {
+  PENDING
+  RETRY
+  SKIPPED
+  REMOVED
+}
+
 model TelegramUser {
   id           String         @id @default(uuid()) @db.Uuid
   telegramId   String         @unique
@@ -170,6 +177,7 @@ model ChannelSubscription {
   payments           ChannelPayment[]
   invites            ChannelInvite[]
   membership         ChannelMembership?
+  removalTask        ChannelRemovalTask?
 
   @@unique([userId, productId])
   @@index([nextChargeAt])
@@ -182,6 +190,7 @@ model ChannelPayment {
   subscriptionId    String               @db.Uuid
   kind              ChannelPaymentKind
   status            ChannelPaymentStatus @default(PENDING)
+  rejoinInviteRequired Boolean            @default(false)
   amountKopecks     Int
   currency          String
   providerPaymentId String?              @unique
@@ -222,6 +231,23 @@ model ChannelMembership {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
   subscription   ChannelSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+/// Persisted cleanup outcome. Preview never creates or updates these rows.
+model ChannelRemovalTask {
+  subscriptionId String               @id @db.Uuid
+  status         ChannelRemovalStatus @default(PENDING)
+  attempts       Int                  @default(0)
+  nextAttemptAt  DateTime             @default(now())
+  lastCheckedAt  DateTime?
+  lastReason     String?              @db.VarChar(100)
+  lastError      String?              @db.VarChar(500)
+  removedAt      DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  subscription   ChannelSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
 }
 
 model ReceiptOperation {

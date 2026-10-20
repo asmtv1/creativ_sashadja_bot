@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { RenewalsSection, type RenewalsReport } from "./renewals";
+import { ExpiryPreview, type ExpiryPreviewReport } from "./expiry-preview";
 
 type Credentials = { user: string; password: string };
 type ProductKey = "course" | "channel";
@@ -340,6 +341,7 @@ export default function AdminPage() {
               setLoading(true);
               void loadRenewals().catch(() => setNotice({ kind: "error", text: "Не удалось обновить продления." })).finally(() => setLoading(false));
             }} />
+            <ExpiryPreview load={async (offset) => await adminRequest(`/api/admin/channel-expiry-preview?limit=20&offset=${offset}`) as ExpiryPreviewReport} />
           </>
         ) : isReceiptsTab ? (
           <ReceiptSection

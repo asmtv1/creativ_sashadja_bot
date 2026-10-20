@@ -43,3 +43,8 @@ test("deploy ships Caddy and reclaims old app images without touching Postgres",
 test("migration image applies the schema before the idempotent seed", () => {
   assert.match(migrateDockerfile, /pnpm db:migrate:deploy && pnpm db:seed/);
 });
+
+test("expiry removal can be enabled only by an explicit production secret", () => {
+  assert.match(workflow, /CHANNEL_EXPIRY_ENFORCEMENT_ENABLED:\s*\$\{\{ secrets\.CHANNEL_EXPIRY_ENFORCEMENT_ENABLED \}\}/);
+  assert.match(workflow, /line\("CHANNEL_EXPIRY_ENFORCEMENT_ENABLED", env\.CHANNEL_EXPIRY_ENFORCEMENT_ENABLED === "true" \? "true" : "false"\)/);
+});

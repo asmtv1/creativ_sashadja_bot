@@ -19,7 +19,7 @@ export class ChannelInvitesService implements OnModuleInit, OnModuleDestroy {
     try {
       const payments = await this.prisma.channelPayment.findMany({
         where: {
-          status: "SUCCEEDED", kind: "INITIAL",
+          status: "SUCCEEDED", OR: [{ kind: "INITIAL" }, { rejoinInviteRequired: true }],
           providerPaymentId: { not: null }, NOT: { providerPaymentId: { startsWith: "demo_" } },
           subscription: { status: { in: ["ACTIVE", "CANCELED_AT_PERIOD_END"] }, periodEnd: { gt: new Date() }, product: { telegramChatId: { not: null } } },
         },
@@ -38,7 +38,7 @@ export class ChannelInvitesService implements OnModuleInit, OnModuleDestroy {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-invite:${paymentId}`}))::text`;
       if (await tx.botOutbox.findUnique({ where: { id: paymentId } })) return;
       const payment = await tx.channelPayment.findUnique({ where: { id: paymentId }, include: { subscription: { include: { product: true, user: true } } } });
-      if (!payment || payment.status !== "SUCCEEDED" || payment.kind !== "INITIAL") return;
+      if (!payment || payment.status !== "SUCCEEDED" || (payment.kind !== "INITIAL" && !payment.rejoinInviteRequired)) return;
       const sub = payment.subscription;
       if (!sub.periodEnd || sub.periodEnd <= new Date() || !["ACTIVE", "CANCELED_AT_PERIOD_END"].includes(sub.status)) return;
       if (!sub.product.telegramChatId) throw new ServiceUnavailableException("Channel is not bound to the bot yet");

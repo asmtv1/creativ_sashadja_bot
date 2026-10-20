@@ -23,6 +23,8 @@ const EnvSchema = z.object({
   CHANNEL_SUBSCRIPTION_ENABLED: z.coerce.boolean().default(false),
   CHANNEL_PRODUCT_SLUG: z.string().min(1).default("creative-ideas"),
   CHANNEL_BIND_SECRET: optionalNonEmptyString(),
+  // Opt-in only after the dry-run report has been reviewed.
+  CHANNEL_EXPIRY_ENFORCEMENT_ENABLED: z.enum(["true", "false"]).default("false"),
   // Kept for backwards-compatible production environments; NPD processing is
   // controlled independently by NPD_PROCESSING_ENABLED and starts fail-closed.
   SELF_EMPLOYED_RECEIPT_PROVIDER: z.enum(["disabled", "npd"]).default("disabled"),
