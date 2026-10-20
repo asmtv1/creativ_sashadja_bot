@@ -31,6 +31,13 @@ describe("Telegram removal confirmation", () => {
     expect(fetchMock.mock.calls.map(([url]) => String(url).split("/").at(-1))).toEqual(["unbanChatMember", "getChatMember"]);
   });
 
+  it("reads current channel size without mutating membership", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(okay(139));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await make().getMemberCount("-100")).toBe(139);
+    expect(fetchMock.mock.calls.map(([url]) => String(url).split("/").at(-1))).toEqual(["getChatMemberCount"]);
+  });
+
   it("refuses to confirm when Telegram still reports a member or errors", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(okay(true)).mockResolvedValueOnce(okay(true)).mockResolvedValueOnce(okay({ status: "member" })));
     await expect(make().removeAndConfirm("-100", "42", { status: "member" })).rejects.toThrow("did not confirm");

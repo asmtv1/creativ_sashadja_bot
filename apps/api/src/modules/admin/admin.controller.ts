@@ -1,3 +1,4 @@
+import { AdminChannelMembershipAuditService } from "./admin-channel-membership-audit.service";
 import { ChannelExpiryService } from "../channel-subscriptions/channel-expiry.service";
 import {
   Body,
@@ -29,6 +30,7 @@ export class AdminController {
     private readonly channelAccess: AdminChannelAccessService,
     private readonly channelRenewals: AdminChannelRenewalsService,
     private readonly channelExpiry: ChannelExpiryService,
+    private readonly channelMembershipAudit: AdminChannelMembershipAuditService,
   ) {}
 
   @Post("signout")
@@ -180,6 +182,9 @@ export class AdminController {
   channelRenewalsReport() {
     return this.channelRenewals.getReport();
   }
+
+  @Get("channel-membership-audit")
+  channelMembershipAuditReport() { return this.channelMembershipAudit.report(); }
 
   @Get("channel-expiry-preview")
   channelExpiryPreview(@Query("limit") limit?: string, @Query("offset") offset?: string) {

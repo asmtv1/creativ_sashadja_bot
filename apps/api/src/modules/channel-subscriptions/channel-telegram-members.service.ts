@@ -18,6 +18,14 @@ export class ChannelTelegramMembersService {
     return member;
   }
 
+  async getMemberCount(chatId: string): Promise<number> {
+    const count = await this.request<number>("getChatMemberCount", { chat_id: chatId });
+    if (!Number.isInteger(count) || count < 0) {
+      throw new ServiceUnavailableException("Telegram returned an invalid member count");
+    }
+    return count;
+  }
+
   async removeAndConfirm(chatId: string, telegramId: string, member: ChannelMember): Promise<"REMOVED" | "ALREADY_LEFT"> {
     if (member.status === "creator" || member.status === "administrator") {
       throw new ServiceUnavailableException("Protected channel administrator");

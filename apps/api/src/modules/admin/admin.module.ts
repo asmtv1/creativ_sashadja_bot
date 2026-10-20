@@ -1,3 +1,4 @@
+import { AdminChannelMembershipAuditService } from "./admin-channel-membership-audit.service";
 import { ChannelTelegramMembersService } from "../channel-subscriptions/channel-telegram-members.service";
 import { ChannelSubscriptionsModule } from "../channel-subscriptions/channel-subscriptions.module";
 import { Module } from "@nestjs/common";
@@ -17,6 +18,7 @@ import { AdminChannelRenewalsService } from "./admin-channel-renewals.service";
     AdminChannelAccessService,
     ChannelTelegramMembersService,
     AdminChannelRenewalsService,
+    AdminChannelMembershipAuditService,
     {
       provide: AdminAccessService,
       useFactory: (repository: PrismaAdminAccessRepository) =>
