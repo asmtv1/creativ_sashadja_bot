@@ -1,3 +1,4 @@
+import { AdminChannelReconciliationService } from "./admin-channel-reconciliation.service";
 import { AdminChannelMembershipAuditService } from "./admin-channel-membership-audit.service";
 import { ChannelExpiryService } from "../channel-subscriptions/channel-expiry.service";
 import {
@@ -31,6 +32,7 @@ export class AdminController {
     private readonly channelRenewals: AdminChannelRenewalsService,
     private readonly channelExpiry: ChannelExpiryService,
     private readonly channelMembershipAudit: AdminChannelMembershipAuditService,
+    private readonly channelReconciliation: AdminChannelReconciliationService,
   ) {}
 
   @Post("signout")
@@ -182,6 +184,9 @@ export class AdminController {
   channelRenewalsReport() {
     return this.channelRenewals.getReport();
   }
+
+  @Get("channel-membership-reconciliation")
+  channelMembershipReconciliation() { return this.channelReconciliation.report(); }
 
   @Get("channel-membership-audit")
   channelMembershipAuditReport() { return this.channelMembershipAudit.report(); }

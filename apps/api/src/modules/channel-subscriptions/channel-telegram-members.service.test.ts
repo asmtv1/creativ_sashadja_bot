@@ -31,6 +31,13 @@ describe("Telegram removal confirmation", () => {
     expect(fetchMock.mock.calls.map(([url]) => String(url).split("/").at(-1))).toEqual(["unbanChatMember", "getChatMember"]);
   });
 
+  it("reads channel administrators safely", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(okay([{ status: "creator", user: { id: 123 } }]));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await make().getAdministrators("-100")).toEqual([{ status: "creator", user: { id: 123 } }]);
+    expect(fetchMock.mock.calls.map(([url]) => String(url).split("/").at(-1))).toEqual(["getChatAdministrators"]);
+  });
+
   it("reads current channel size without mutating membership", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(okay(139));
     vi.stubGlobal("fetch", fetchMock);

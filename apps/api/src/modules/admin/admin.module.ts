@@ -1,3 +1,4 @@
+import { AdminChannelReconciliationService } from "./admin-channel-reconciliation.service";
 import { AdminChannelMembershipAuditService } from "./admin-channel-membership-audit.service";
 import { ChannelTelegramMembersService } from "../channel-subscriptions/channel-telegram-members.service";
 import { ChannelSubscriptionsModule } from "../channel-subscriptions/channel-subscriptions.module";
@@ -19,6 +20,7 @@ import { AdminChannelRenewalsService } from "./admin-channel-renewals.service";
     ChannelTelegramMembersService,
     AdminChannelRenewalsService,
     AdminChannelMembershipAuditService,
+    AdminChannelReconciliationService,
     {
       provide: AdminAccessService,
       useFactory: (repository: PrismaAdminAccessRepository) =>

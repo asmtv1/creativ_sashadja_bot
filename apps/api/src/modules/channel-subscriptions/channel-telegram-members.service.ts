@@ -18,6 +18,18 @@ export class ChannelTelegramMembersService {
     return member;
   }
 
+  async getAdministrators(chatId: string): Promise<Array<{ user: { id: number }; status: "creator" | "administrator" }>> {
+    const administrators = await this.request<Array<{ user: { id: number }; status: "creator" | "administrator" }>>(
+      "getChatAdministrators", { chat_id: chatId },
+    );
+    if (!Array.isArray(administrators) || administrators.some((admin) =>
+      !["creator", "administrator"].includes(admin.status) || !Number.isSafeInteger(admin.user?.id)
+    )) {
+      throw new ServiceUnavailableException("Telegram returned an invalid administrator list");
+    }
+    return administrators;
+  }
+
   async getMemberCount(chatId: string): Promise<number> {
     const count = await this.request<number>("getChatMemberCount", { chat_id: chatId });
     if (!Number.isInteger(count) || count < 0) {
