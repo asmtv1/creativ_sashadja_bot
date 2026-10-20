@@ -4,6 +4,7 @@ import { AdminAccessService } from "./admin-access.service";
 import { AdminController } from "./admin.controller";
 import { PrismaAdminAccessRepository } from "./prisma-admin-access.repository";
 import { AdminChannelAccessService } from "./admin-channel-access.service";
+import { AdminChannelRenewalsService } from "./admin-channel-renewals.service";
 
 @Module({
   controllers: [AdminController],
@@ -11,6 +12,7 @@ import { AdminChannelAccessService } from "./admin-channel-access.service";
     AdminBasicGuard,
     PrismaAdminAccessRepository,
     AdminChannelAccessService,
+    AdminChannelRenewalsService,
     {
       provide: AdminAccessService,
       useFactory: (repository: PrismaAdminAccessRepository) =>

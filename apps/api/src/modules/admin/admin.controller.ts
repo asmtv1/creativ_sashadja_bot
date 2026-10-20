@@ -14,6 +14,7 @@ import { AdminBasicGuard } from "../../common/guards/admin-basic.guard";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdminAccessService } from "./admin-access.service";
 import { AdminChannelAccessService } from "./admin-channel-access.service";
+import { AdminChannelRenewalsService } from "./admin-channel-renewals.service";
 
 const COURSE_SLUG = "basic-course";
 const CHANNEL_PRODUCT_SLUG = "creative-ideas";
@@ -25,6 +26,7 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly access: AdminAccessService,
     private readonly channelAccess: AdminChannelAccessService,
+    private readonly channelRenewals: AdminChannelRenewalsService,
   ) {}
 
   @Post("signout")
@@ -170,6 +172,11 @@ export class AdminController {
         };
       }),
     };
+  }
+
+  @Get("channel-renewals")
+  channelRenewalsReport() {
+    return this.channelRenewals.getReport();
   }
 
   @Get("orders")

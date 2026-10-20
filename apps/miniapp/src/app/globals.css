@@ -1528,3 +1528,35 @@ html.player-fullscreen-open body {
   border-radius: 8px;
   padding: 0 10px;
 }
+
+.admin-renewal-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.admin-renewal-controls label {
+  display: grid;
+  gap: 5px;
+  color: #9db0c0;
+  font-size: 13px;
+  flex: 1 1 220px;
+}
+.admin-renewal-controls select,
+.admin-renewal-controls input {
+  min-height: 42px;
+  padding: 9px 12px;
+  background: #14283a;
+  color: #fff;
+  border: 1px solid #405a70;
+  border-radius: 9px;
+  font: inherit;
+}
+.admin-renewal-history {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  min-width: 240px;
+  font-size: 12px;
+}
+.admin-renewal-history li + li { margin-top: 6px; }
+.admin-table summary { cursor: pointer; }

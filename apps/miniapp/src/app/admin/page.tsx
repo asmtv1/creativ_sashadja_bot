@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { RenewalsSection, type RenewalsReport } from "./renewals";
 
 type Credentials = { user: string; password: string };
 type ProductKey = "course" | "channel";
-type AdminTab = ProductKey | "receipts";
+type AdminTab = ProductKey | "receipts" | "renewals";
 type ChannelPaymentStatus =
   | "PENDING"
   | "SUCCEEDED"
@@ -66,6 +67,7 @@ const PRODUCT_META: Record<
 const ADMIN_TABS: Array<{ key: AdminTab; label: string }> = [
   { key: "course", label: PRODUCT_META.course.tab },
   { key: "channel", label: PRODUCT_META.channel.tab },
+  { key: "renewals", label: "Продления" },
   { key: "receipts", label: "Чеки НПД" },
 ];
 
@@ -81,6 +83,7 @@ export default function AdminPage() {
     Partial<Record<ProductKey, Dashboard>>
   >({});
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [renewalsReport, setRenewalsReport] = useState<RenewalsReport | null>(null);
   const [isLoading, setLoading] = useState(false);
   const [accessTarget, setAccessTarget] = useState("");
   const [notice, setNotice] = useState<{
@@ -88,7 +91,8 @@ export default function AdminPage() {
     text: string;
   } | null>(null);
   const isReceiptsTab = activeTab === "receipts";
-  const dashboard = isReceiptsTab ? undefined : dashboards[activeTab];
+  const activeProductTab: ProductKey | null = activeTab === "course" || activeTab === "channel" ? activeTab : null;
+  const dashboard = activeProductTab ? dashboards[activeProductTab] : undefined;
   const visibleUsers = dashboard?.users ?? [];
 
   async function loadDashboard(
@@ -100,6 +104,11 @@ export default function AdminPage() {
       activeCredentials,
     )) as Dashboard;
     setDashboards((current) => ({ ...current, [tab]: payload }));
+  }
+
+  async function loadRenewals() {
+    const payload = (await adminRequest("/api/admin/channel-renewals")) as RenewalsReport;
+    setRenewalsReport(payload);
   }
 
   async function loadReceipts(activeCredentials?: Credentials) {
@@ -136,6 +145,17 @@ export default function AdminPage() {
   async function changeTab(tab: AdminTab) {
     setActiveTab(tab);
     setNotice(null);
+    if (tab === "renewals") {
+      setLoading(true);
+      try {
+        await loadRenewals();
+      } catch {
+        setNotice({ kind: "error", text: "Не удалось загрузить продления." });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (tab === "receipts") {
       if (!receipts.length) {
         setLoading(true);
@@ -177,7 +197,7 @@ export default function AdminPage() {
   }
 
   async function mutateAccess(action: "grant" | "revoke", target: string) {
-    if (activeTab === "receipts") return;
+    if (!activeProductTab) return;
     if (action === "revoke" && !window.confirm("Точно отозвать доступ?"))
       return;
     setNotice(null);
@@ -185,11 +205,11 @@ export default function AdminPage() {
     try {
       const telegramId = await resolveTelegramId(target);
       const path =
-        activeTab === "course"
+        activeProductTab === "course"
           ? `/api/admin/access/${action}`
           : `/api/admin/channel-access/${action}`;
       const body =
-        activeTab === "course"
+        activeProductTab === "course"
           ? { telegramId, courseSlug: "basic-course" }
           : { telegramId };
       const result = await adminRequest(path, undefined, {
@@ -197,7 +217,7 @@ export default function AdminPage() {
         body,
       });
       setAccessTarget("");
-      await loadDashboard(activeTab);
+      await loadDashboard(activeProductTab);
       setNotice({
         kind: "success",
         text:
@@ -291,6 +311,7 @@ export default function AdminPage() {
                   setAuthorized(false);
                   setDashboards({});
                   setReceipts([]);
+                  setRenewalsReport(null);
                   setCredentials({ user: "", password: "" });
                 })
                 .catch(() => setNotice({ kind: "error", text: "Не удалось выйти. Попробуйте ещё раз." }));
@@ -311,7 +332,16 @@ export default function AdminPage() {
             </button>
           ))}
         </nav>
-        {isReceiptsTab ? (
+        {activeTab === "renewals" ? (
+          <>
+            {notice ? <p className={`admin-notice ${notice.kind}`}>{notice.text}</p> : null}
+            <RenewalsSection report={renewalsReport} loading={isLoading} onRefresh={() => {
+              setNotice(null);
+              setLoading(true);
+              void loadRenewals().catch(() => setNotice({ kind: "error", text: "Не удалось обновить продления." })).finally(() => setLoading(false));
+            }} />
+          </>
+        ) : isReceiptsTab ? (
           <ReceiptSection
             receipts={receipts}
             isLoading={isLoading}
@@ -332,7 +362,7 @@ export default function AdminPage() {
               <button
                 className="admin-refresh"
                 type="button"
-                onClick={() => void loadDashboard(activeTab)}
+                onClick={() => void loadDashboard(activeProductTab!)}
                 disabled={isLoading}
               >
                 Обновить
@@ -359,7 +389,7 @@ export default function AdminPage() {
             >
               <div>
                 <h3 id="manual-access-title">
-                  {PRODUCT_META[activeTab].access}
+                  {PRODUCT_META[activeProductTab!].access}
                 </h3>
                 <p>
                   Введите @username или Telegram ID. Пользователь должен хотя бы
@@ -419,7 +449,7 @@ export default function AdminPage() {
                         <UserRow
                           key={user.telegramId}
                           user={user}
-                          tab={activeTab}
+                          tab={activeProductTab!}
                           onMutate={mutateAccess}
                           disabled={isLoading}
                         />
@@ -428,7 +458,7 @@ export default function AdminPage() {
                   </table>
                 </div>
               ) : (
-                <p className="admin-empty">{PRODUCT_META[activeTab].empty}</p>
+                <p className="admin-empty">{PRODUCT_META[activeProductTab!].empty}</p>
               )}
             </section>
           </>
@@ -473,11 +503,14 @@ function ReceiptSection({
 function ReceiptRow({ receipt }: { receipt: Receipt }) {
   const handle = receipt.username ? `@${receipt.username}` : `ID ${receipt.telegramId}`;
   const status = receipt.status === "ISSUED" ? "Сформирован" : receipt.status === "PENDING" ? "В очереди" : receipt.status === "RECONCILIATION_REQUIRED" ? "Нужна сверка" : "Ошибка";
+  const error = receipt.lastError === "NPD create outcome requires reconciliation"
+    ? "Результат создания чека неизвестен. Сверьте его с «Мой налог» перед повторной попыткой."
+    : receipt.lastError;
   return <tr>
     <td><strong>{receipt.name || handle}</strong><small>{receipt.name ? handle : ""}</small></td>
     <td>{receipt.product}</td>
     <td>{formatRubles(receipt.amountKopecks)}<small>{formatDate(receipt.paidAt)}</small></td>
-    <td><span className={receipt.status === "ISSUED" ? "admin-status active" : "admin-status"}>{status}</span>{receipt.lastError ? <small>{receipt.lastError}</small> : null}</td>
+    <td><span className={receipt.status === "ISSUED" ? "admin-status active" : "admin-status"}>{status}</span>{error ? <small>{error}</small> : null}</td>
     <td>{receipt.receiptUrl ? <a href={receipt.receiptUrl} target="_blank" rel="noreferrer">Открыть чек</a> : "—"}</td>
   </tr>;
 }
