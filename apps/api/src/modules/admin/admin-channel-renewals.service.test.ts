@@ -68,10 +68,12 @@ describe("channel renewal report", () => {
     expect(row.nextAttemptAt).toBe(after.toISOString());
   });
 
-  it("does not report an already revoked or expired status as active access", () => {
-    const row = presentChannelRenewal(subscription({ status: "EXPIRED", periodEnd: after }), now);
-    expect(row.active).toBe(false);
+  it("retains paid access until periodEnd when an advance renewal exhausted its retries", () => {
+    const row = presentChannelRenewal(subscription({ status: "EXPIRED", autoRenew: true, periodEnd: after }), now);
+    expect(row.active).toBe(true);
     expect(row.state).toBe("PAYMENT_PROBLEM");
+    const noSuccessfulPayment = presentChannelRenewal(subscription({ status: "EXPIRED", periodEnd: after, payments: [payment("RENEWAL", "FAILED", now)] }), now);
+    expect(noSuccessfulPayment.active).toBe(false);
   });
 
   it("distinguishes canceled auto renewal and refunded payment", () => {

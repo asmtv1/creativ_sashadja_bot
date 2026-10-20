@@ -51,7 +51,12 @@ export function presentChannelRenewal(sub: SubscriptionWithHistory, now: Date) {
     (a, b) => (a.paidAt ?? a.createdAt).getTime() - (b.paidAt ?? b.createdAt).getTime(),
   );
   const periodNotEnded = Boolean(sub.periodEnd && sub.periodEnd > now);
-  const active = periodNotEnded && ["ACTIVE", "PAST_DUE", "CANCELED_AT_PERIOD_END"].includes(sub.status);
+  // A failed pre-expiry renewal may set EXPIRED while the paid term still
+  // runs. It is a payment problem, not grounds for early access removal.
+  const active = periodNotEnded && (
+    ["ACTIVE", "PAST_DUE", "CANCELED_AT_PERIOD_END"].includes(sub.status) ||
+    (sub.status === "EXPIRED" && sub.autoRenew && successful.length > 0)
+  );
   const state: RenewalState =
     sub.status === "REFUNDED"
       ? "REFUNDED"

@@ -5,7 +5,7 @@ const now = new Date("2026-10-20T15:00:00Z");
 const future = new Date("2026-11-20T15:00:00Z");
 const old = new Date("2026-09-20T15:00:00Z");
 const sub = (id: string, source: string | null, paid: boolean, periodEnd: Date | null = future) => ({
-  status: "ACTIVE", periodEnd,
+  status: "ACTIVE", autoRenew: true, periodEnd,
   membership: source ? { source, removedAt: null } : null,
   payments: paid ? [{ status: "SUCCEEDED" }] : [],
   user: { telegramId: id, username: null, firstName: `Name ${id}`, lastName: null },
@@ -36,7 +36,7 @@ describe("admin read-only channel reconciliation", () => {
     const r = await new AdminChannelReconciliationService(prisma as any, telegram as any).report();
     expect(r).toMatchObject({
       telegramMemberCount: 10, subscriptionRecords: 5,
-      activeRecordBreakdown: { totalActive: 4, manual: 2, everPaid: 2, bothManualAndPaid: 1, neitherManualNorPaid: 1 },
+      activeRecordBreakdown: { totalActive: 4, manual: 2, everPaid: 2, bothManualAndPaid: 1, neitherManualNorPaid: 1, paidTermValidDespiteExpiredStatus: 0 },
       telegramAdministrators: 2, administratorsWithoutSubscription: 1,
       trackedPresent: 4, trackedAbsent: 1,
       membersByEntitlement: { CHANNEL_ADMIN: 1, MANUAL: 2, EXPIRED_PAID: 1 },
@@ -58,6 +58,12 @@ describe("admin read-only channel reconciliation", () => {
     };
     const r = await new AdminChannelReconciliationService(prisma as any, telegram as any).report();
     expect(r.unexplainedMembers).toEqual({ minimum: 3, maximum: 4, exact: false });
+  });
+
+  it("does not classify a paid future term as expired when renewal retries are exhausted", () => {
+    const member = { status: "member" as const };
+    const paidExpiredState = { ...sub("77", "MANAGED", true), status: "EXPIRED" };
+    expect(entitlementCategory(paidExpiredState, now, member)).toBe("PAID_TERM_WITH_RENEWAL_PROBLEM");
   });
 
   it("keeps valid grace, pending payments, and exempt members protected", () => {

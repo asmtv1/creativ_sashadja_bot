@@ -8,7 +8,7 @@ const currentStatuses = new Set(["ACTIVE", "PAST_DUE", "CANCELED_AT_PERIOD_END"]
 
 type Category =
   | "CHANNEL_ADMIN" | "EXEMPT" | "MANUAL" | "PAID"
-  | "GRACE_PERIOD" | "PAYMENT_PENDING" | "ACTIVE_WITHOUT_PAYMENT"
+  | "PAID_TERM_WITH_RENEWAL_PROBLEM" | "GRACE_PERIOD" | "PAYMENT_PENDING" | "ACTIVE_WITHOUT_PAYMENT"
   | "EXPIRED_MANUAL" | "EXPIRED_PAID" | "NO_TRACKED_ENTITLEMENT";
 
 export function isPresent(member: ChannelMember) {
@@ -17,6 +17,7 @@ export function isPresent(member: ChannelMember) {
 
 export function entitlementCategory(sub: {
   status: string;
+  autoRenew?: boolean;
   periodEnd: Date | null;
   membership: { source: string; removedAt?: Date | null } | null;
   payments: Array<{ status: string }>;
@@ -25,6 +26,12 @@ export function entitlementCategory(sub: {
   if (member.status === "creator" || member.status === "administrator") return "CHANNEL_ADMIN";
   if (sub.membership?.source === "EXEMPT") return "EXEMPT";
   const manual = sub.membership?.source === "MANUAL";
+  // An exhausted renewal retry schedule can mark a subscription EXPIRED
+  // *before* its already-paid periodEnd. Access is not expired yet.
+  if (!manual && sub.autoRenew && sub.status === "EXPIRED" && sub.periodEnd && sub.periodEnd > now &&
+      sub.payments.some((payment) => payment.status === "SUCCEEDED")) {
+    return "PAID_TERM_WITH_RENEWAL_PROBLEM";
+  }
   const active = Boolean(sub.periodEnd && sub.periodEnd > now && currentStatuses.has(sub.status));
   if (active) {
     if (manual) return "MANUAL";
@@ -55,7 +62,7 @@ export class AdminChannelReconciliationService {
       this.telegram.getMemberCount(chatId),
       this.telegram.getAdministrators(chatId),
       this.prisma.channelSubscription.findMany({ where: { productId: product.id }, select: {
-        status: true, periodEnd: true,
+        status: true, autoRenew: true, periodEnd: true,
         user: { select: { telegramId: true, username: true, firstName: true, lastName: true } },
         membership: { select: { source: true, removedAt: true } },
         removalTask: { select: { status: true } },
@@ -67,7 +74,7 @@ export class AdminChannelReconciliationService {
     const untrackedAdmins = [...admins].filter((id) => !trackedIds.has(id)).length;
     const categoryCounts: Record<Category, number> = {
       CHANNEL_ADMIN: 0, EXEMPT: 0, MANUAL: 0, PAID: 0,
-      GRACE_PERIOD: 0, PAYMENT_PENDING: 0, ACTIVE_WITHOUT_PAYMENT: 0,
+      PAID_TERM_WITH_RENEWAL_PROBLEM: 0, GRACE_PERIOD: 0, PAYMENT_PENDING: 0, ACTIVE_WITHOUT_PAYMENT: 0,
       EXPIRED_MANUAL: 0, EXPIRED_PAID: 0, NO_TRACKED_ENTITLEMENT: 0,
     };
     const flagged: Array<{ telegramId: string; username: string | null; name: string | null; reason: Category }> = [];
@@ -77,6 +84,7 @@ export class AdminChannelReconciliationService {
     let activeManualRecords = 0;
     let activePaidRecords = 0;
     let activeUnpaidRecords = 0;
+    let paidTermValidDespiteStatus = 0;
     let activeManualAndPaidRecords = 0;
     let trackedPresentAdmin = 0;
     const classify = (sub: typeof subscriptions[number], member: ChannelMember) => {
@@ -95,7 +103,11 @@ export class AdminChannelReconciliationService {
     };
     for (const sub of subscriptions) {
       const valid = Boolean(sub.periodEnd && sub.periodEnd > now && currentStatuses.has(sub.status));
-      if (!valid) continue;
+      if (!valid) {
+        if (sub.autoRenew && sub.status === "EXPIRED" && sub.periodEnd && sub.periodEnd > now &&
+            sub.payments.some((payment) => payment.status === "SUCCEEDED")) paidTermValidDespiteStatus++;
+        continue;
+      }
       const manual = sub.membership?.source === "MANUAL";
       const paid = sub.payments.some((payment) => payment.status === "SUCCEEDED");
       if (manual) activeManualRecords++;
@@ -122,6 +134,7 @@ export class AdminChannelReconciliationService {
         everPaid: activePaidRecords,
         bothManualAndPaid: activeManualAndPaidRecords,
         neitherManualNorPaid: activeUnpaidRecords,
+        paidTermValidDespiteExpiredStatus: paidTermValidDespiteStatus,
       },
       telegramAdministrators: admins.size,
       administratorsWithoutSubscription: untrackedAdmins,
