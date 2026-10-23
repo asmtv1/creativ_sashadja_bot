@@ -196,9 +196,9 @@ export class ChannelSubscriptionsService {
       if (currentPayment.status === "SUCCEEDED" || currentPayment.status === "REFUNDED") return;
       const current = await tx.channelSubscription.findUniqueOrThrow({ where: { id: sub.id }, include: { membership: true, removalTask: true } });
       const rejoinInviteRequired = Boolean(current.membership?.removedAt || current.removalTask?.status === "REMOVED");
-      const start = payment.kind === "RENEWAL" && current.periodEnd && current.periodEnd > now ? current.periodEnd : now;
+      const start = current.periodEnd && current.periodEnd > now ? current.periodEnd : now;
       const end = new Date(start.getTime() + sub.product.periodDays * 86_400_000);
-      const retainAutoRenew = current.autoRenew && (payment.kind === "INITIAL" || Boolean(current.paymentMethodId));
+      const retainAutoRenew = payment.kind === "INITIAL" || (current.autoRenew && Boolean(current.paymentMethodId));
       await tx.channelPayment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED", paidAt: now, rejoinInviteRequired, providerPayload: { status: remote.status } as Prisma.InputJsonValue } });
       await tx.channelSubscription.update({ where: { id: sub.id }, data: { status: retainAutoRenew ? "ACTIVE" : "CANCELED_AT_PERIOD_END", autoRenew: retainAutoRenew, paymentMethodId: retainAutoRenew ? remote.payment_method!.id : null, periodStart: start, periodEnd: end, nextChargeAt: retainAutoRenew ? new Date(end.getTime() - sub.product.renewalLeadMinutes * 60_000) : null, nextAttemptAt: null, attemptCount: 0 } });
       // An expired user can repay after cleanup: clear the old removal marker

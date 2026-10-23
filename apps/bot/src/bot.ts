@@ -6,6 +6,7 @@ import { handleStart } from "./handlers/start";
 import {
   handleChannelCheckout,
   handleChannelEntry,
+  handleChannelOffer,
   handleStopRenewal,
   handleSubscriptionStatus
 } from "./handlers/channel-subscription";
@@ -36,6 +37,7 @@ export function createCourseBot(deps: {
     await answerCallbackQueryIfFresh(ctx);
     await handleChannelEntry(ctx, deps.api, deps.miniAppUrl);
   });
+  bot.callbackQuery("channel_reactivate", async (ctx) => { await answerCallbackQueryIfFresh(ctx); await handleChannelOffer(ctx, deps.miniAppUrl); });
   bot.callbackQuery("channel_checkout", async (ctx) => { await answerCallbackQueryIfFresh(ctx); await handleChannelCheckout(ctx, deps.api); });
   bot.callbackQuery("channel_cancel_confirm", async (ctx) => {
     await answerCallbackQueryIfFresh(ctx);

@@ -23,10 +23,14 @@ export async function handleChannelEntry(
   publicBaseUrl: string
 ) {
   const status = await api.getChannelSubscription(requireTelegramId(ctx)).catch(() => null);
-  if (status?.activeUntil) {
+  if (status?.activeUntil && new Date(status.activeUntil).getTime() > Date.now()) {
     await sendSubscriptionStatus(ctx, status);
     return;
   }
+  await handleChannelOffer(ctx, publicBaseUrl);
+}
+
+export async function handleChannelOffer(ctx: BotHandlerContext, publicBaseUrl: string) {
   const options = { ...channelTermsKeyboard(publicBaseUrl), parse_mode: "HTML" };
   if (ctx.replyWithVideo) {
     await ctx.replyWithVideo(new InputFile(CHANNEL_PREVIEW_VIDEO_PATH), {
@@ -78,7 +82,8 @@ export async function handleStopRenewal(
   try {
     await api.stopChannelRenewal(requireTelegramId(ctx));
     await ctx.reply(
-      "Продление остановлено. Сохранённый способ оплаты удалён из нашей системы, новых списаний не будет. Доступ сохранится до конца оплаченного периода."
+      "Продление остановлено. Сохранённый способ оплаты удалён из нашей системы, новых списаний не будет. Доступ сохранится до конца оплаченного периода.",
+      subscriptionKeyboard(false)
     );
   } catch {
     await ctx.reply("Не удалось остановить продление. Попробуйте позже.");
@@ -89,6 +94,14 @@ async function sendSubscriptionStatus(
   ctx: BotHandlerContext,
   status: Awaited<ReturnType<BotApi["getChannelSubscription"]>>
 ) {
+  const hasExpired = Boolean(status.activeUntil && new Date(status.activeUntil).getTime() <= Date.now());
+  const statusText = hasExpired ? "срок оплаченного периода закончился" :
+    status.status === "ACTIVE" ? "активна" :
+    status.status === "CANCELED_AT_PERIOD_END" ? "действует без автопродления" :
+    status.status === "PAST_DUE" ? "ожидает повторной оплаты" :
+    status.status === "REFUNDED" ? "возврат платежа" :
+    status.status === "EXPIRED" ? "истекла" :
+    status.status === "PENDING" ? "ожидает оплаты" : "не оформлена";
   const until = status.activeUntil
     ? new Intl.DateTimeFormat("ru-RU", {
         dateStyle: "medium",
@@ -104,11 +117,11 @@ async function sendSubscriptionStatus(
     : "не назначено";
   const autoRenewText = status.autoRenew
     ? "включено — списание будет только через СБП"
-    : "остановлено — сохранённый способ оплаты удалён";
+    : status.activeUntil ? "остановлено — сохранённый способ оплаты удалён" : "не подключено";
 
   await ctx.reply(
     [
-      "Подписка: " + (status.status ?? "не оформлена"),
+      "Подписка: " + statusText,
       "Оплачено до: " + until,
       "Следующее списание: " + next + ", " + formatRubles(status.amountKopecks),
       "Автопродление: " + autoRenewText

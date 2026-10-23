@@ -65,3 +65,31 @@ it("delivers the paid channel link instead of course payment instructions", asyn
   expect(telegram.sendMessage).toHaveBeenCalledWith("42", expect.stringContaining("одноразовой ссылке: https://t.me/+test"));
   expect(api.markOutboxSent).toHaveBeenCalledWith("invite_1");
 });
+
+
+describe("channel subscription notifications", () => {
+  const end = "2020-10-15T00:00:00.000Z";
+  it("delivers an expired notice with a resubscribe button", async () => {
+    const recentEnd = new Date(Date.now() - 60_000).toISOString();
+    const api = {
+      getOutbox: vi.fn(async () => [{ id: "notice", telegramId: "42", type: "CHANNEL_SUBSCRIPTION_EXPIRED" as const, payload: { periodEnd: recentEnd } }]),
+      getChannelSubscription: vi.fn(async () => ({ activeUntil: recentEnd, autoRenew: false, nextChargeAt: null, amountKopecks: 39000, currency: "RUB" })),
+      markOutboxSent: vi.fn(), markOutboxFailed: vi.fn(),
+    };
+    const telegram = { sendMessage: vi.fn() };
+    await runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" });
+    expect(telegram.sendMessage).toHaveBeenCalledWith("42", expect.stringContaining("Оплаченный период подписки закончился"),
+      { reply_markup: { inline_keyboard: [[{ text: "Оформить подписку снова", callback_data: "channel_reactivate" }]] } });
+    expect(api.markOutboxSent).toHaveBeenCalledWith("notice");
+  });
+
+  it("suppresses stale notification when a subscription was renewed", async () => {
+    const api = { getOutbox: vi.fn(async () => [{ id: "old-notice", telegramId: "42", type: "CHANNEL_SUBSCRIPTION_EXPIRED" as const, payload: { periodEnd: end } }]),
+      getChannelSubscription: vi.fn(async () => ({ activeUntil: "2026-11-20T00:00:00.000Z", autoRenew: true, nextChargeAt: null, amountKopecks: 39000, currency: "RUB" })),
+      markOutboxSent: vi.fn(), markOutboxFailed: vi.fn() };
+    const telegram = { sendMessage: vi.fn() };
+    await runOutboxBatch({ api, telegram, miniAppUrl: "https://course.example.com" });
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+    expect(api.markOutboxSent).toHaveBeenCalledWith("old-notice");
+  });
+});

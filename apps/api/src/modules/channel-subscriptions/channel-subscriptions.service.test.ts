@@ -276,6 +276,41 @@ describe("Channel payment callbacks", () => {
     expect(receipts.queueChannelReceipt).toHaveBeenCalledWith(expect.objectContaining({ paidAt }));
   });
 
+  it("reactivates auto-renew and preserves prepaid days when a canceled subscriber buys again", async () => {
+    const currentEnd = new Date(Date.now() + 5 * 86_400_000);
+    const product = { periodDays: 30, renewalLeadMinutes: 240, title: "Креатив идеи" };
+    const sub = { id: "sub", userId: "user", autoRenew: false, periodEnd: currentEnd, product };
+    const payment = { id: "new-payment", subscriptionId: "sub", kind: "INITIAL", status: "PENDING", amountKopecks: 39000, currency: "RUB", subscription: sub };
+    const prisma = {
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(async (fn: any) => fn(prisma)),
+      channelPayment: {
+        findUnique: vi.fn(async () => payment),
+        findUniqueOrThrow: vi.fn(async () => payment),
+        update: vi.fn(async ({ data }: any) => Object.assign(payment, data)),
+      },
+      channelSubscription: {
+        findUniqueOrThrow: vi.fn(async () => ({ ...sub, membership: { removedAt: null }, removalTask: null })),
+        update: vi.fn(async () => undefined),
+      },
+      channelRemovalTask: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      channelMembership: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      telegramUser: { findUnique: vi.fn(async () => ({ telegramId: "42" })) },
+    };
+    const remote = { status: "succeeded", paid: true, amount: { value: "390.00", currency: "RUB" },
+      metadata: { kind: "channel_subscription", paymentId: "new-payment" }, payment_method: { type: "sbp", id: "saved-sbp", saved: true } };
+    const receipts = { queueChannelReceipt: vi.fn(async () => undefined) };
+    const invites = { queueInvite: vi.fn(async () => undefined) };
+    const service = new ChannelSubscriptionsService(prisma as any, {} as any, { getPayment: vi.fn(async () => remote) } as any, receipts as any, invites as any);
+    await service.handleWebhook("provider");
+    expect(prisma.channelSubscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      periodStart: currentEnd,
+      periodEnd: new Date(currentEnd.getTime() + 30 * 86_400_000),
+      status: "ACTIVE", autoRenew: true, paymentMethodId: "saved-sbp",
+    }) }));
+    expect(invites.queueInvite).toHaveBeenCalledWith("new-payment");
+  });
+
   it("refuses checkout when the channel has not been bound", async () => {
     const service = new ChannelSubscriptionsService({ channelProduct: { findUnique: vi.fn(async () => ({ telegramChatId: null })) } } as any, {} as any, {} as any, {} as any, {} as any);
     await expect(service.createCheckout("42", true)).rejects.toThrow("not bound");

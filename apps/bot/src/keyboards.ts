@@ -33,7 +33,7 @@ export function channelTermsKeyboard(publicBaseUrl: string) {
 export function paymentUrlKeyboard(url: string) { return { reply_markup: { inline_keyboard: [[{ text: "Оплатить через СБП", url }]] } }; }
 export function subscriptionKeyboard(autoRenew: boolean) {
   if (!autoRenew) {
-    return undefined;
+    return { reply_markup: { inline_keyboard: [[{ text: "Оформить подписку снова", callback_data: "channel_reactivate" }]] } };
   }
   return {
     reply_markup: {

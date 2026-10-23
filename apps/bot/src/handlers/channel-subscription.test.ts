@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleChannelEntry, handleStopRenewal, handleSubscriptionStatus } from "./channel-subscription";
+import { handleChannelEntry, handleChannelOffer, handleStopRenewal, handleSubscriptionStatus } from "./channel-subscription";
 
 function createContext() {
   const replies: Array<{ text: string; options?: unknown }> = [];
@@ -14,8 +14,8 @@ function createContext() {
 
 const activeStatus = {
   status: "ACTIVE" as const,
-  activeUntil: "2026-09-30T09:00:00.000Z",
-  nextChargeAt: "2026-09-30T05:00:00.000Z",
+  activeUntil: "2026-11-30T09:00:00.000Z",
+  nextChargeAt: "2026-11-30T05:00:00.000Z",
   autoRenew: true,
   amountKopecks: 39000,
   currency: "RUB"
@@ -61,12 +61,36 @@ describe("channel subscription controls", () => {
       getChannelSubscription: vi.fn(async () => activeStatus)
     });
 
+    expect(ctx.replies.at(-1)?.text).toContain("Подписка: активна");
     expect(ctx.replies.at(-1)?.text).toContain("списание будет только через СБП");
     expect(ctx.replies.at(-1)?.options).toMatchObject({
       reply_markup: {
         inline_keyboard: [[{ text: "Остановить продление", callback_data: "channel_cancel_confirm" }]]
       }
     });
+  });
+
+  it("offers a new checkout for a past canceled period instead of showing a dead-end status", async () => {
+    const ctx = createContext();
+    await handleChannelEntry(ctx as any, {
+      getChannelSubscription: vi.fn(async () => ({ ...activeStatus, autoRenew: false, status: "CANCELED_AT_PERIOD_END", activeUntil: "2020-10-15T00:00:00.000Z" }))
+    } as any, "https://course.example.com");
+    expect(ctx.replies.at(-1)?.text).toContain("До оплаты ознакомьтесь");
+    expect((ctx.replies.at(-1)?.options as any).reply_markup.inline_keyboard[0]).toEqual(
+      [{ text: "Принять условия и перейти к оплате", callback_data: "channel_checkout" }]
+    );
+  });
+
+  it("shows a resubscribe button while an auto-renew-canceled period remains paid", async () => {
+    const ctx = createContext();
+    await handleSubscriptionStatus(ctx as any, { getChannelSubscription: vi.fn(async () => ({
+      ...activeStatus, autoRenew: false, status: "CANCELED_AT_PERIOD_END" as const
+    })) });
+    expect(ctx.replies.at(-1)?.options).toMatchObject({ reply_markup: { inline_keyboard: [
+      [{ text: "Оформить подписку снова", callback_data: "channel_reactivate" }]
+    ] } });
+    await handleChannelOffer(ctx as any, "https://course.example.com");
+    expect(ctx.replies.at(-1)?.text).toContain("Автопродление включено по умолчанию");
   });
 
   it("stops renewal through the API and confirms that the saved method was removed", async () => {

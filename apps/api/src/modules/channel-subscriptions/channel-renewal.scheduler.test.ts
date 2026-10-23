@@ -11,14 +11,17 @@ describe("ChannelRenewalScheduler", () => {
       reconcilePendingInitialPayments: vi.fn(async () => undefined),
     };
     const expiry = { runOnce: vi.fn(async () => ({ scanned: 9, disabled: false })) };
-    const scheduler = new ChannelRenewalScheduler(subscriptions as any, expiry as any);
+    const notifications = { queueDue: vi.fn(async () => ({ queued: 1 })) };
+    const scheduler = new ChannelRenewalScheduler(subscriptions as any, expiry as any, notifications as any);
     scheduler.onModuleInit();
     expect(expiry.runOnce).toHaveBeenCalledTimes(1);
+    expect(notifications.queueDue).toHaveBeenCalledTimes(1);
     expect(subscriptions.runRenewals).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(15 * 60_000);
     expect(expiry.runOnce).toHaveBeenCalledTimes(2);
     expect(subscriptions.runRenewals).toHaveBeenCalledTimes(1);
     expect(subscriptions.reconcilePendingInitialPayments).toHaveBeenCalledTimes(1);
+    expect(notifications.queueDue).toHaveBeenCalledTimes(2);
     scheduler.onModuleDestroy();
     await vi.advanceTimersByTimeAsync(15 * 60_000);
     expect(expiry.runOnce).toHaveBeenCalledTimes(2);
@@ -28,7 +31,8 @@ describe("ChannelRenewalScheduler", () => {
     vi.useFakeTimers();
     const expiry = { runOnce: vi.fn().mockRejectedValueOnce(new Error("database temporarily unavailable")).mockResolvedValueOnce({ scanned: 0 }) };
     const subscriptions = { runRenewals: vi.fn(async () => undefined), reconcilePendingInitialPayments: vi.fn(async () => undefined) };
-    const scheduler = new ChannelRenewalScheduler(subscriptions as any, expiry as any);
+    const notifications = { queueDue: vi.fn(async () => ({ queued: 1 })) };
+    const scheduler = new ChannelRenewalScheduler(subscriptions as any, expiry as any, notifications as any);
     scheduler.onModuleInit();
     await vi.advanceTimersByTimeAsync(15 * 60_000);
     expect(expiry.runOnce).toHaveBeenCalledTimes(2);
